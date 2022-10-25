@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Generator: Adobe Illustrator 25.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 800 800" enable-background="new 0 0 800 800" xml:space="preserve">
+<g id="face">
+	
+		<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="-1514.663" y1="2980.4612" x2="-2314.6631" y2="2980.4612" gradientTransform="matrix(0 -1 1 0 -2580.4612 -1506.2064)">
+		<stop  offset="0" style="stop-color:#EAEAEA"/>
+		<stop  offset="1" style="stop-color:#B2B2B2"/>
+	</linearGradient>
+	<circle fill="url(#SVGID_1_)" cx="400" cy="400" r="400"/>
+</g>
+<g id="mouth">
+</g>
+<g id="eyes">
+</g>
+<g id="brows">
+	<path fill="#6B6B6B" d="M400.4,196.8c-63.4,0-104.4,26-136.6,72.2c-5.8,8.4-4,19.9,4.1,26.1l34.2,26c8.2,6.2,19.9,4.8,26.4-3.3
+		c19.9-24.9,34.6-39.2,65.7-39.2c24.4,0,54.6,15.7,54.6,39.4c0,17.9-14.8,27.1-38.9,40.6c-28.1,15.8-65.3,35.4-65.3,84.5v7.8
+		c0,10.5,8.5,19,19,19h57.5c10.5,0,19-8.5,19-19v-4.6c0-34,99.4-35.4,99.4-127.5C539.7,249.4,467.7,196.8,400.4,196.8z M392.4,493.2
+		c-30.3,0-55,24.7-55,55c0,30.3,24.7,55,55,55s55-24.7,55-55S422.7,493.2,392.4,493.2z"/>
+</g>
+</svg>

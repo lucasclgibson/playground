@@ -1,0 +1,15 @@
+{
+    "name": "lucgibson/playground",
+    "autoload": {
+        "psr-4": {
+            "Lucgibson\\Playground\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Luc",
+            "email": "luc.gibson@outlook.com"
+        }
+    ],
+    "require": {}
+}
