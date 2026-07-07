@@ -78,12 +78,12 @@ browser UA everywhere anyway).
 ### Consolation zones (confirmed rule + open questions)
 
 - **Confirmed by the owner**: a ticket within 10 px of the winner refunds
-  100% of its price. At the current model's σ ≈ 28 px this is worth ~£39/week
-  expected on a 100-ticket cluster (~6-7% rebate), and ~1 week in 6 returns
-  most of the stake. It does NOT change optimal placement — refund
-  probability is proportional to the same local mass as win probability, so
-  top-K-by-mass stays optimal — but it cuts variance/bleed during live
-  validation.
+  100% of its price. In the target scenario of σ ≈ 28 px model error (see
+  Phase 4 — no model exists yet), this is worth ~£39/week expected on a
+  100-ticket cluster (~6-7% rebate), and ~1 week in 6 returns most of the
+  stake. It does NOT change optimal placement — refund probability is
+  proportional to the same local mass as win probability, so top-K-by-mass
+  stays optimal — but it cuts variance/bleed during live validation.
 - **Likely 5-zone structure**: the gamePhoto API component includes
   `hasFiveZoneRadius`, `zone1OverrideValue`..`zone5OverrideValue`, and
   `gameCreditAwarded` — the 10px/100% rule is probably zone 1 of 5. At
@@ -175,9 +175,14 @@ Work through these in order; each step is idempotent and resumable.
 
 ## Phase 4: validating a strong result before staking money
 
-Status: a first model reports "within 10×10 px of the judged pixel 2% of
-the time" on held-out samples (implied σ ≈ 28 px — well past break-even on
-paper). A result this good must survive the following before real tickets:
+Status: **no model exists yet** — data gathering (Phase 1) is still in
+progress. This phase defines the success scenario and the gates it must
+pass. The working target is "judged pixel within a 10×10 px patch of the
+prediction ~2% of held-out weeks" (σ ≈ 28 px) — that is roughly where the
+economics turn clearly positive. Expect first fine-tunes to land far worse
+(median error in the hundreds of px is normal at first); iterate via the
+Phase 3 backtest. If/when a result approaches the target, it must survive
+the following before real tickets:
 
 1. **Hit count, not hit rate.** Score every one of the 488 weeks exactly
    once out-of-fold (leave-one-year-out). 2% on a small holdout can be a
