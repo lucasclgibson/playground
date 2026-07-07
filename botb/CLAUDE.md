@@ -146,12 +146,28 @@ Work through these in order; each step is idempotent and resumable.
 
 ## Phase 2: judge model (for context — starts after data is verified)
 
-- Pretrain heatmap regression (pretrained ViT-B/ConvNeXt backbone +
-  upsampling head, Gaussian target) on the synthetic corpus to recover true
-  ball position; fine-tune on the 488 judge-labelled pairs to learn the
-  judge offset (judges place the ball where gaze/body shape suggests, not
-  where it was). Coarse full-frame pass, then a refinement head on a
-  full-res crop around the peak.
+- **Do not train from scratch.** Domain familiarity comes from the
+  synthetic pretraining stage (supervised domain adaptation on exactly the
+  right task), not from training a fresh model on football images — a
+  from-scratch model learns weaker features at vastly higher cost. Raw
+  4416×3336 resolution is never an input: stage 1 sees a ~1024–1536 px
+  downscaled frame, stage 2 sees native-res crops; pixel precision comes
+  from the stage-2 crop.
+- **Backbone bake-off, not a fixed choice**: candidates DINOv2/DINOv3 ViT-B
+  (default favourite — best dense features, works frozen), ViTPose ViT-B
+  (heatmap-native, human-pose priors match the judge signal), ConvNeXt
+  V2-B (convolutional baseline, cheap at high res). Protocol: identical
+  lightweight heatmap decoder on each frozen backbone, fixed short training
+  budget on the synthetic corpus, pick by cross-validated out-of-fold error
+  on the 488. Start at ViT-B scale; promote to ViT-L / unfreeze only after
+  the pipeline and metrics are stable. Skip SAM encoders and VLMs as
+  backbones (VLMs may return later as pseudo-judge labellers).
+- Pretrain heatmap regression (winning backbone + upsampling head, Gaussian
+  target) on the synthetic corpus to recover true ball position; fine-tune
+  on the 488 judge-labelled pairs to learn the judge offset (judges place
+  the ball where gaze/body shape suggests, not where it was). Coarse
+  full-frame pass, then a refinement head on a full-res crop around the
+  peak.
 - Output must be a **calibrated distribution**, not a point: full-res
   heatmap or peak + covariance. Calibration matters more than peak
   sharpness — the allocator consumes probability mass, not argmax.
