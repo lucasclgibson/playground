@@ -1,8 +1,16 @@
-# BOTB spot-the-ball prediction
+# BOTB ticket placement system
 
-Can a model predict where BOTB's judging panel will place the ball? This
-directory holds the data-collection groundwork: a validated scraper and the
-full manifest of every published result with coordinates.
+Given a BOTB spot-the-ball image and a ticket budget, output the set of
+pixels to place tickets on. Two components: a **judge model** (calibrated
+probability distribution over where the judging panel will place the ball)
+and a **ticket allocator** (turns that distribution plus ticket budget and
+tie-break rules into concrete entries). Point prediction is explicitly a
+non-goal — the judges' choice has irreducible variance below ~tens of
+pixels, so winning is a coverage-and-calibration game, not an accuracy one.
+
+This directory holds the data-collection groundwork: a validated scraper and
+the full manifest of every published result with coordinates. `CLAUDE.md` is
+the live project brief and runbook.
 
 ## What BOTB publishes (confirmed 2026-07-07)
 
@@ -33,15 +41,23 @@ published coordinates: overlay centre (375, 233) on a 736×556 render matches
 ## Key numbers for modelling
 
 - **488** (image, judged-position) pairs; ~52 new per year.
-- Median distance from winning guess to judged spot: **0 px** (max 3 px across
-  all 488 results). With tens of thousands of entries per week, someone always
-  lands on the exact judged pixel — a winning strategy needs pixel-level
-  precision plus multiple entries tiling the predicted zone.
+- The winning entry is the **exact judged pixel in 304/488 weeks (62%)**,
+  within ~1.4 px in 96%, never worse than 3 px. The crowd collectively
+  saturates the neighbourhood every week — hitting the judged pixel is
+  necessary but likely contested (ties on consensus pixels).
+- **No quantization shortcut**: judged coordinates are uniform mod 2/5/10 —
+  a true continuous target, every pixel in play.
 - Judges are instructed to place the ball where play suggests it should be
   (gaze direction, body shape), not where it physically was — so the label is
   a human-judgement distribution, which is exactly what makes this learnable.
+- Precision economics: a model with Gaussian error σ=30 px puts only ~0.4%
+  of its mass in any 25 px² patch, so a single tight guess loses essentially
+  every week. But at combined (model + judge) σ ≈ 75 px, ~150 well-placed
+  tickets carry roughly 0.4% weekly win probability — order of break-even
+  against a ~£250k prize at ~£6/ticket. Calibration and ticket rules decide
+  this, not raw accuracy.
 
-## Suggested modelling approach
+## System design
 
 488 samples is too few to train from scratch but fine for fine-tuning:
 
@@ -52,10 +68,17 @@ published coordinates: overlay centre (375, 233) on a 736×556 render matches
    to recover the true position. This gives effectively unlimited pretraining
    data for the underlying "read the play" skill.
 2. **Fine-tune on the 488 judge-labelled samples** so the model learns the
-   systematic offset between physical truth and judge consensus.
-3. Evaluate with leave-one-year-out splits (judge panels and photo style
-   drift over time); report median normalised pixel error and the radius
-   containing 50/90% of predictions.
+   systematic offset between physical truth and judge consensus. Output is a
+   calibrated distribution (heatmap/covariance), not an argmax.
+3. **Ticket allocator**: converts (distribution, ticket budget K) into the K
+   pixels maximising win probability; later versions adjust for tie-break
+   rules and crowd density (prefer high-judge-probability,
+   low-crowd-density pixels).
+4. **Backtest, don't vibe-check**: leave-one-year-out splits (judge panels
+   and photo style drift); for each held-out week score whether the judged
+   pixel falls in the model's top-K set (K = 25, 150, 1000), plus median
+   normalised pixel error and 50/90% radii. Top-150 hit rate ≈ 0 → betting
+   layer isn't live; ≥ 0.5–1% → it is.
 
 ## Caveats
 
