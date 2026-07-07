@@ -75,6 +75,27 @@ browser UA everywhere anyway).
   the ones where judges land off the crowd consensus and the model followed
   the judges.
 
+### Consolation zones (confirmed rule + open questions)
+
+- **Confirmed by the owner**: a ticket within 10 px of the winner refunds
+  100% of its price. At the current model's σ ≈ 28 px this is worth ~£39/week
+  expected on a 100-ticket cluster (~6-7% rebate), and ~1 week in 6 returns
+  most of the stake. It does NOT change optimal placement — refund
+  probability is proportional to the same local mass as win probability, so
+  top-K-by-mass stays optimal — but it cuts variance/bleed during live
+  validation.
+- **Likely 5-zone structure**: the gamePhoto API component includes
+  `hasFiveZoneRadius`, `zone1OverrideValue`..`zone5OverrideValue`, and
+  `gameCreditAwarded` — the 10px/100% rule is probably zone 1 of 5. At
+  σ ≈ 28 px the model is within 50 px of the judged spot ~79% of weeks, so
+  outer-zone partial credits could offset a large fraction of weekly cost.
+  **Action: scrape the zone radii and credit values** — from the JSON zone
+  fields where present, and by measuring the rendered rings in
+  `zonePhotoUrl` overlays otherwise. Fold the full zone schedule into the
+  allocator's EV function.
+- Whether zone refunds are cash or site credit (credit only compounds if
+  you keep playing) — check T&Cs.
+
 ### Open questions to resolve from BOTB T&Cs (feed straight into the allocator)
 
 - Maximum tickets per person per week (and per-household rules).
@@ -140,8 +161,10 @@ Work through these in order; each step is idempotent and resumable.
 ## Phase 3: ticket allocator + backtest (the actual product)
 
 - Allocator: given heatmap + ticket budget K, select the K pixels
-  maximising P(win). V1: top-K probability mass. V2: adjust for tie-breaks
-  and crowd density once T&C questions above are answered.
+  maximising expected value: P(win) × prize + expected zone rebates −
+  ticket cost. V1: top-K probability mass (refunds don't change the
+  ranking). V2: adjust for tie-breaks and crowd density once T&C questions
+  above are answered.
 - **Evaluation is a backtest, not a vibe check.** Leave-one-year-out splits
   (panels and photo style drift). For every held-out week score "judged
   pixel ∈ model's top-K set" for K = 25, 150, 1000. With 488 weeks a 2% hit
@@ -149,6 +172,32 @@ Work through these in order; each step is idempotent and resumable.
   with median error 150+ px, the betting layer isn't live; if it clears
   0.5–1%, it is. Also report median normalised pixel error and 50/90%
   radii for the judge model itself.
+
+## Phase 4: validating a strong result before staking money
+
+Status: a first model reports "within 10×10 px of the judged pixel 2% of
+the time" on held-out samples (implied σ ≈ 28 px — well past break-even on
+paper). A result this good must survive the following before real tickets:
+
+1. **Hit count, not hit rate.** Score every one of the 488 weeks exactly
+   once out-of-fold (leave-one-year-out). 2% on a small holdout can be a
+   single lucky hit (95% CI ~0.05–10%); 2% over 488 weeks is ~10 hits
+   (CI ~1–3.6%), which is informative.
+2. **Leakage audit**: no test-week images (or near-duplicates) anywhere in
+   pretraining; identical coordinate normalisation at train and eval;
+   metric computed against `judgedPosition` (not `winnerPosition`); confirm
+   the metric definition (max(|dx|,|dy|)≤5 vs Euclidean ≤5 differ ~27% in
+   area). Note: keying on BOTB's inpainting artefacts is NOT leakage — the
+   live weekly image is produced the same way, so it's a legal feature.
+3. **Calibration curve**: hit rate vs K for K = 25, 50, 100, 150, 500,
+   1000 top-probability pixels. The allocator buys top-K mass, not a square
+   patch; if hits only appear at large K the 10×10 framing was flattering.
+4. **Paper-trade forward** (leakage-proof by construction): each week,
+   generate and timestamp the top-100 pixels BEFORE results publish, then
+   score against the announced judged position. 8–12 weeks. Zone rebates
+   (see consolation zones above) reduce the cost of doing this with real
+   tickets. Gate to real staking: out-of-fold hit rate ≥ ~1.5% AND ≥ 1
+   top-100 hit in the paper-trade window.
 
 ## Ground rules
 
