@@ -36,15 +36,15 @@ BACK_T    = 3.5;         // rear stop wall
 FRONT_LIP = 8.0;         // tray depth ahead of the seated PC, carries the nubs
 
 /* [Mounting pads] Four tabs rather than full-length flanges: the same screw
-   pattern for a third of the material. The ends taper at 45 degrees so they
-   still print without support. */
+   pattern for a third of the material. Uniform thickness on purpose - a
+   gusset at the root reaches under the screw head and fouls the driver, so
+   the pad is simply thick enough not to need one. */
 EAR_L      = 14.0;       // outward reach beyond the body
 EAR_PAD    = 48.0;       // length of a pad where it meets the wall
 EAR_END    = 21.0;       // run-out at each end; longer than EAR_L keeps the
                          // taper under 45 degrees in the build direction
-EAR_T      = 5.0;        // thickness at the screw
-EAR_ROOT_T = 9.0;        // thickness where it meets the wall
-EAR_TAPER  = 6.0;        // length of the root gusset
+EAR_T      = 6.5;        // thickness
+DRIVER_CLR = 2.0;        // clear ring around each head for a bit or driver
 
 /* [Fasteners] 4x #8 or M4 flat-head wood screws, 20-25 mm long */
 SCREW_D     = 4.5;       // clearance hole
@@ -58,11 +58,14 @@ NUB_RAMP_BACK   = 2.5;   // steep side: firm pull to remove
 NUB_FLAT        = 1.5;
 NUB_RAMP_FRONT  = 3.5;   // shallow side: easy push to insert
 
-/* [Vents] Honeycomb. Cells sit flat-side-up in the build direction, so each
-   one closes with a short bridge the width of a single hexagon side rather
-   than the 30 degree overhang a point-up cell would give. */
-VENT_AF  = 14.0;         // hexagon across the flats
-VENT_RIB = 2.5;          // material left between cells
+/* [Vents] Stretched honeycomb: hexagons with vertical flanks and pointed
+   ends, the points along the build direction. A cell closes at VENT_ANGLE
+   instead of bridging flat across its width, so the grid needs no bridging
+   at all. */
+VENT_W     = 12.0;       // cell width across the flats
+VENT_LEN   = 26.0;       // cell length along the build direction
+VENT_ANGLE = 60.0;       // end slope from horizontal; >= 45 prints unsupported
+VENT_RIB   = 2.0;        // material left between cells
 TOP_VENT_BORDER  = 8.0;  // solid margin around the top-plate field
 SIDE_VENT_BORDER = 12.0; // solid margin at each end of a side wall
 SIDE_VENT_MARGIN = 4.0;  // solid wall left above and below the band
@@ -102,6 +105,9 @@ NUB_Y1 = NUB_Y0 + NUB_RAMP_BACK;
 NUB_Y2 = NUB_Y1 + NUB_FLAT;
 NUB_Y3 = NUB_Y2 + NUB_RAMP_FRONT;
 
+VENT_RISE = VENT_W / 2 * tan(VENT_ANGLE);        // height of one pointed end
+VENT_SIDE = VENT_LEN - 2 * VENT_RISE;            // length of the vertical flank
+
 CSK_DEPTH = (HEAD_D - SCREW_D) / 2 / tan(CSK_ANGLE / 2);
 EPS = 0.01;
 
@@ -111,6 +117,10 @@ assert(SHELF_W < X_CAV, "shelves overlap on the centre line");
 assert(EAR_END > EAR_L, "pad ends would overhang steeper than 45 degrees");
 assert(EAR_PAD > 2 * EAR_END, "mounting pads taper away to nothing; raise EAR_PAD");
 assert(EAR_PAD - EAR_END > HEAD_D + 4, "no room for a screw head on the pad");
+assert(SCREW_X - HEAD_D / 2 - DRIVER_CLR >= X_OUT,
+       "the side wall crowds the screw heads; raise EAR_L");
+assert(VENT_ANGLE >= 45, "vent ends would need support");
+assert(VENT_SIDE > 0, "vent cells are too short for their angle; raise VENT_LEN");
 
 // --------------------------- helpers --------------------------------------
 
@@ -131,41 +141,45 @@ module extrude_x(profile, x0, x1) {
         linear_extrude(height = x1 - x0) polygon(profile);
 }
 
-// Honeycomb field, centred on the origin and filling u_ext x v_ext. Cells are
-// pointed across u and flat across v, so with v along the build direction the
-// only overhang in the whole grid is the flat top of each cell - one hexagon
-// side wide. Columns that would hang over the edge of the field are dropped
-// rather than clipped, so the border never ends in slivers.
-module honeycomb(u_ext, v_ext, af, rib) {
-    pitch = af + rib;                // centre-to-centre, any direction
-    du = pitch * sqrt(3) / 2;        // column pitch
-    r  = af / sqrt(3);               // circumradius of one cell
-    ncol = floor((u_ext - 2 * r) / du) + 1;
-    nrow = floor((v_ext - af) / pitch) + 1;
-    for (i = [0 : ncol - 1]) {
-        n = nrow - (i % 2);          // staggered columns hold one cell fewer
-        for (j = [0 : n - 1])
-            translate([-(ncol - 1) * du / 2 + i * du,
-                       -(n - 1) * pitch / 2 + j * pitch])
-                circle(r = r, $fn = 6);
-    }
+// One vent cell: vertical flanks with a pointed end at each side. Shrinking
+// the tile by half the rib is what makes the web between cells come out an
+// even VENT_RIB everywhere, corners included.
+module vent_cell(w, side, rise, rib) {
+    offset(delta = -rib / 2)
+        polygon([[ w / 2, -side / 2], [ w / 2, side / 2], [0,  side / 2 + rise],
+                 [-w / 2,  side / 2], [-w / 2, -side / 2], [0, -side / 2 - rise]]);
 }
 
-// One mounting pad, centred on cy: a flat screw pad with a gusset underneath,
-// clipped to a plan trapezoid so both ends run out at 45 degrees.
+// Field of cells centred on the origin, filling u_ext x v_ext. Rows interlock
+// the way a honeycomb does - the point of one cell lands in the notch between
+// two of the row above - so the tiling is exact for any cell proportion. Cells
+// that would hang over a border are dropped whole rather than clipped, so the
+// margins never end in slivers.
+module vent_field(u_ext, v_ext, w, len, angle, rib) {
+    rise = w / 2 * tan(angle);
+    side = len - 2 * rise;
+    dv   = side + rise;              // rows overlap by one point
+    nrow = floor((v_ext - len) / dv) + 1;
+    kmax = ceil(u_ext / w);
+    for (j = [0 : nrow - 1])
+        for (k = [-kmax : kmax]) {
+            cu = (j % 2) * w / 2 + k * w;
+            if (abs(cu) + w / 2 <= u_ext / 2 + EPS)
+                translate([cu, -(nrow - 1) * dv / 2 + j * dv])
+                    vent_cell(w, side, rise, rib);
+        }
+}
+
+// One mounting pad, centred on cy: a flat tab clipped to a plan trapezoid so
+// both ends run out shallower than 45 degrees in the build direction.
 module ear(cy) {
     y0 = cy - EAR_PAD / 2;
     y1 = cy + EAR_PAD / 2;
     intersection() {
-        union() {
-            boxc(X_OUT, X_EAR, y0, y1, -EAR_T, 0);
-            extrude_y([[X_OUT, -EAR_ROOT_T], [X_OUT, -EAR_T],
-                       [X_OUT + EAR_TAPER, -EAR_T]], y0, y1);
-        }
-        translate([0, 0, -EAR_ROOT_T - 1])
-            linear_extrude(height = EAR_ROOT_T + 2)
-                polygon([[X_OUT, y0], [X_EAR, y0 + EAR_END],
-                         [X_EAR, y1 - EAR_END], [X_OUT, y1]]);
+        boxc(X_OUT, X_EAR, y0, y1, -EAR_T, 0);
+        translate([0, 0, -EAR_T - 1]) linear_extrude(height = EAR_T + 2)
+            polygon([[X_OUT, y0], [X_EAR, y0 + EAR_END],
+                     [X_EAR, y1 - EAR_END], [X_OUT, y1]]);
     }
 }
 
@@ -194,8 +208,8 @@ module body() {
 module cuts() {
     // Screw holes, countersunk for flat-head screws.
     for (sx = [-SCREW_X, SCREW_X], sy = SCREW_YS) {
-        translate([sx, sy, -EAR_ROOT_T - EPS])
-            cylinder(h = EAR_ROOT_T + 2 * EPS, d = SCREW_D);
+        translate([sx, sy, -EAR_T - EPS])
+            cylinder(h = EAR_T + 2 * EPS, d = SCREW_D);
         if (HEAD_D > SCREW_D)
             translate([sx, sy, -EAR_T - EPS])
                 cylinder(h = CSK_DEPTH + EPS, d1 = HEAD_D + 2 * EPS, d2 = SCREW_D);
@@ -207,18 +221,19 @@ module cuts() {
             translate([cx, -EPS, cz]) rotate([-90, 0, 0])
                 cylinder(h = BACK_T + 2 * EPS, r = PORT_R);
 
-    // Top-plate honeycomb.
+    // Top-plate vents.
     translate([0, OUT_D / 2, Z_CAV_TOP - EPS])
         linear_extrude(height = TOP_T + 2 * EPS)
-            honeycomb(OUT_W - 2 * TOP_VENT_BORDER, OUT_D - 2 * TOP_VENT_BORDER,
-                      VENT_AF, VENT_RIB);
+            vent_field(OUT_W - 2 * TOP_VENT_BORDER, OUT_D - 2 * TOP_VENT_BORDER,
+                       VENT_W, VENT_LEN, VENT_ANGLE, VENT_RIB);
 
-    // Side-wall honeycomb, across the band of wall that faces the PC.
+    // Side-wall vents, across the band of wall that faces the PC.
     for (m = [0, 1]) mirror([m, 0, 0])
         translate([X_CAV - EPS, OUT_D / 2, (Z_CAV_TOP + Z_FLOOR) / 2])
             rotate([0, 90, 0]) linear_extrude(height = WALL + 2 * EPS)
-                honeycomb(CAV_H - 2 * SIDE_VENT_MARGIN,
-                          OUT_D - 2 * SIDE_VENT_BORDER, VENT_AF, VENT_RIB);
+                vent_field(CAV_H - 2 * SIDE_VENT_MARGIN,
+                           OUT_D - 2 * SIDE_VENT_BORDER,
+                           VENT_W, VENT_LEN, VENT_ANGLE, VENT_RIB);
 
     // Lead-in chamfer around the front opening (walls and ceiling, not the
     // shelves - the nubs live there).

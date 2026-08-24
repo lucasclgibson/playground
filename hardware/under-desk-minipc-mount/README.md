@@ -18,7 +18,7 @@ edit at the top of the `.scad` file.
 | Overall, including mounting pads | 165 x 142 x 54.5 |
 | Drop below the desk | 54.5 |
 | Screw pattern | 151 across x 82 along |
-| Material | 94 cm3 solid (~85 g as printed) |
+| Material | 95 cm3 solid (~86 g as printed) |
 
 Clearance is 1 mm each side, 2 mm above and 1.5 mm front-to-back, so a device
 that measures a little over its spec still goes in.
@@ -35,19 +35,23 @@ that measures a little over its spec still goes in.
   back of each nub is a steeper 31 degree ramp: a firm pull gets the PC out,
   a knock or a tugged cable does not.
 - **Mounting pads** - four tabs rather than full-length flanges, 48 mm long on
-  a 151 x 82 mm pattern, each gusseted where it meets the wall and tapered at
-  both ends so it still prints unsupported.
-- **Airflow** - open bottom, open front, a 113 x 37 mm rear cutout, and a 14 mm
-  honeycomb through the top plate and both side walls: 52 cells overhead
-  (~8,800 mm2 open) and 13 per side (~2,200 mm2 each).
+  a 151 x 82 mm pattern, tapered at both ends so they still print unsupported.
+  They are a uniform 6.5 mm rather than thin-with-a-gusset: a gusset at the
+  root reaches in under the screw head and fouls the driver. Every head has a
+  clear 6.8 mm radius below it.
+- **Airflow** - open bottom, open front, a 113 x 37 mm rear cutout, and a
+  12 x 26 mm vent lattice through the top plate and both side walls: 66 cells
+  overhead (~8,500 mm2 open) and 15 per side (~1,900 mm2 each).
 
 ## Printing
 
 Print `under-desk-minipc-mount-print.stl`. It is the same solid rolled onto
 its back face, which is what makes the part support-free: every wall runs
-along the build direction, and the honeycomb is laid out flat-side-up, so each
-cell closes with an 8.1 mm bridge - one hexagon side - instead of the 30 degree
-overhang a point-up cell would give. Nothing in the part needs support.
+along the build direction, and the vent cells are hexagons stretched to a
+point at each end, the points along that direction. A cell closes at 60
+degrees from horizontal rather than bridging flat across its width, so the
+lattice needs no bridging at all - the only overhangs left in the part are the
+four horizontal screw bores, 0.1% of its surface.
 
 | | |
 | --- | --- |
@@ -63,12 +67,14 @@ overhang a point-up cell would give. Nothing in the part needs support.
 
 ## Mounting
 
-Four **#8 or M4 flat-head wood screws**. The pads are 5 mm thick with 90
-degree countersinks, so the heads finish flush.
+Four **#8 or M4 flat-head wood screws**. The pads are 6.5 mm thick with 90
+degree countersinks, so the heads finish flush. Nothing crowds them, but they
+sit 7 mm out from a wall that hangs 54.5 mm down, so use a hand screwdriver or
+a bit extension rather than a drill chuck.
 
 1. Hold the mount against the underside of the desk and mark the four holes.
 2. Pilot drill 2.5-3 mm, **no deeper than the desk is thick minus 3 mm**.
-3. Pick screws no longer than `5 mm + desk thickness - 3 mm` - on an 18 mm
+3. Pick screws no longer than `6.5 mm + desk thickness - 3 mm` - on an 18 mm
    desk top that is a 20 mm screw at most.
 4. Drive all four, then slide the PC in until it clicks past the nubs.
 
@@ -102,21 +108,25 @@ envelope    165.0 x 142.0 x 54.5 mm
 fit         seated PC clears the frame, 2.00 mm of headroom
 insertion   slide-in path clear the whole way, 0.50 mm clear while on the nubs
 retention   1.4 mm slide-out is free travel, 2.0 mm is stopped by the nubs
-vents       52 top cells, 13 per side wall, 4 screws, 1 port = 83 holes
-fasteners   4 screw holes bored through, pad solid around every hole
-print       sits on z = 0, largest unsupported patch 24 mm2 (one cell top)
+vents       66 top cells, 15 per side wall, 4 screws, 1 port = 101 holes
+fasteners   4 bored through, pad solid around each, driver reaches every head
+print       sits on z = 0, largest unsupported patch 14 mm2 (a screw bore)
 ```
 
 So if you retune the fit for a different device, it will tell you whether the
 PC still goes in, still stays in, and still prints without supports. The vent
 check counts the through-holes in the mesh against the cell count the
-parameters imply, which is what catches a honeycomb field that quietly came
+parameters imply, which is what catches a vent field that quietly came
 out empty rather than just a heavier part.
 
-`VENT_AF` and `VENT_RIB` set the cell size and the material between cells;
-`TOP_VENT_BORDER`, `SIDE_VENT_BORDER` and `SIDE_VENT_MARGIN` set the solid
-margins around each field. Cells that would hang over a border are dropped
-whole, so the edges never end in slivers.
+`VENT_W`, `VENT_LEN` and `VENT_RIB` set the cell size and the web between
+cells, and `VENT_ANGLE` sets how steeply each cell closes - drop it towards 45
+for rounder cells, raise it for more margin over the overhang limit. The rows
+interlock the way a honeycomb does, which holds for any cell proportion, and
+each cell is the tile shrunk by half a rib, so the web comes out even
+everywhere including at the points. `TOP_VENT_BORDER`, `SIDE_VENT_BORDER` and
+`SIDE_VENT_MARGIN` set the solid margins around each field; cells that would
+hang over a border are dropped whole, so the edges never end in slivers.
 
 ## Notes and limits
 
@@ -128,7 +138,7 @@ whole, so the edges never end in slivers.
   rear cutout and side vents.
 - The top plate is a third of the material and does no structural work beyond
   tying the two side walls together and keeping the desk off the PC. Dropping
-  it (`TOP_T` down to nothing) would save another ~28 cm3, at the cost of
+  it (`TOP_T` down to nothing) would save another ~33 cm3, at the cost of
   the top grid and a floppier mouth until the mount is screwed down.
 - Sized for a device up to about 2 kg. Beyond that, add a value to `SCREW_YS`
   for a third pair of pads and go to 6 perimeters (`verify.py` expects four

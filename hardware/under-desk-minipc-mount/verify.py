@@ -54,14 +54,16 @@ def cylinder(x, y, z0, z1, r):
         transform=trimesh.transformations.translation_matrix((x, y, (z0 + z1) / 2)))
 
 
-def honeycomb_cells(u_ext, v_ext, af, rib):
-    """Cell count of one honeycomb field - mirrors the module in the .scad."""
-    pitch = af + rib
-    du = pitch * np.sqrt(3) / 2
-    r = af / np.sqrt(3)
-    ncol = int((u_ext - 2 * r) // du) + 1
-    nrow = int((v_ext - af) // pitch) + 1
-    return sum(nrow - (i % 2) for i in range(ncol))
+def vent_cells(u_ext, v_ext, w, length, angle):
+    """Cell count of one vent field - mirrors the module in the .scad."""
+    rise = w / 2 * np.tan(np.radians(angle))
+    dv = length - rise
+    nrow = int((v_ext - length) // dv) + 1
+    kmax = int(np.ceil(u_ext / w))
+    return sum(1
+               for j in range(nrow)
+               for k in range(-kmax, kmax + 1)
+               if abs((j % 2) * w / 2 + k * w) + w / 2 <= u_ext / 2 + TOL)
 
 
 class Checks:
@@ -144,12 +146,12 @@ def main():
     # Vents. Genus counts the through-holes, so a field that silently came out
     # empty shows up here instead of just as a heavier part.
     print("vents")
-    top_cells = honeycomb_cells(out_w - 2 * p["TOP_VENT_BORDER"],
-                                out_d - 2 * p["TOP_VENT_BORDER"],
-                                p["VENT_AF"], p["VENT_RIB"])
-    side_cells = honeycomb_cells(cav_h - 2 * p["SIDE_VENT_MARGIN"],
-                                 out_d - 2 * p["SIDE_VENT_BORDER"],
-                                 p["VENT_AF"], p["VENT_RIB"])
+    top_cells = vent_cells(out_w - 2 * p["TOP_VENT_BORDER"],
+                           out_d - 2 * p["TOP_VENT_BORDER"],
+                           p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
+    side_cells = vent_cells(cav_h - 2 * p["SIDE_VENT_MARGIN"],
+                            out_d - 2 * p["SIDE_VENT_BORDER"],
+                            p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
     want_holes = top_cells + 2 * side_cells + 4 + 1      # + screws + port
     genus = (2 - mount.euler_number) // 2
     check(genus == want_holes,
@@ -170,6 +172,17 @@ def main():
           f"{clear:.3f} mm^3 of obstruction")
     check(solid > V_TOL, "pad is solid around every hole",
           f"{solid:.0f} mm^3 of pad")
+
+    # A screw is no use if a driver cannot reach it: nothing may sit inside the
+    # head's approach below the pad.
+    reach = p["HEAD_D"] / 2 + p["DRIVER_CLR"]
+    fouled = 0.0
+    for sx in (-screw_x, screw_x):
+        for sy in (p["SCREW_INSET"], out_d - p["SCREW_INSET"]):
+            fouled += overlap(mount, cylinder(sx, sy, -p["EAR_T"] - 25,
+                                              -p["EAR_T"], reach))
+    check(fouled < V_TOL, f"driver reaches every head ({reach:.1f} mm radius)",
+          f"{fouled:.1f} mm^3 in the way")
 
     # Print orientation: flat on the bed, no supports needed.
     print("print")
