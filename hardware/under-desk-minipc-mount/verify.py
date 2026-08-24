@@ -44,7 +44,7 @@ def overlap(a, b):
         return 0.0
     if not len(shared.faces):
         return 0.0
-    with np.errstate(invalid="ignore"):        # empty result -> 0/0 in trimesh
+    with np.errstate(invalid="ignore", divide="ignore"):        # empty result -> 0/0 in trimesh
         return float(shared.volume)
 
 
@@ -168,7 +168,7 @@ def main():
                                              p["HEAD_D"] / 2 + 2.0))
     check(n_holes == 4 and clear < V_TOL, f"{n_holes} screw holes bored through",
           f"{clear:.3f} mm^3 of obstruction")
-    check(solid > V_TOL, "flange is solid around every hole",
+    check(solid > V_TOL, "pad is solid around every hole",
           f"{solid:.0f} mm^3 of pad")
 
     # Print orientation: flat on the bed, no supports needed.

@@ -10,7 +10,7 @@
 //
 //   x = width,  0 = centre line
 //   y = depth,  0 = back face, +y = towards the open front
-//   z = height, 0 = desk underside (top of the flanges), -z = down
+//   z = height, 0 = desk underside (top of the plate and pads), -z = down
 //
 // Render:  openscad -o mount.stl under_desk_minipc_mount.scad
 //          openscad -o mount-print.stl -D PRINT_ORIENTATION=true \
@@ -29,41 +29,46 @@ GAP_BACK = 1.5;          // front-back slack between rear wall and nubs
 
 /* [Structure] */
 WALL      = 3.0;         // side walls
-TOP_T     = 5.0;         // top plate, the face that meets the desk
+TOP_T     = 3.0;         // top plate, the face that meets the desk
 SHELF_T   = 4.0;         // bottom support lips
 SHELF_W   = 12.0;        // how far the lips reach in from each wall
-BACK_T    = 4.0;         // rear stop wall
-FRONT_LIP = 9.5;         // tray depth ahead of the seated PC, carries the nubs
+BACK_T    = 3.5;         // rear stop wall
+FRONT_LIP = 8.0;         // tray depth ahead of the seated PC, carries the nubs
 
-/* [Mounting flanges] */
-EAR_L      = 20.0;       // outward reach beyond the body
-EAR_T      = 6.0;        // thickness at the screw pads
-EAR_ROOT_T = 11.0;       // thickness where it meets the wall
-EAR_TAPER  = 8.0;        // length of the root gusset
+/* [Mounting pads] Four tabs rather than full-length flanges: the same screw
+   pattern for a third of the material. The ends taper at 45 degrees so they
+   still print without support. */
+EAR_L      = 14.0;       // outward reach beyond the body
+EAR_PAD    = 48.0;       // length of a pad where it meets the wall
+EAR_END    = 21.0;       // run-out at each end; longer than EAR_L keeps the
+                         // taper under 45 degrees in the build direction
+EAR_T      = 5.0;        // thickness at the screw
+EAR_ROOT_T = 9.0;        // thickness where it meets the wall
+EAR_TAPER  = 6.0;        // length of the root gusset
 
 /* [Fasteners] 4x #8 or M4 flat-head wood screws, 20-25 mm long */
 SCREW_D     = 4.5;       // clearance hole
 HEAD_D      = 9.5;       // countersink top diameter; set = SCREW_D to disable
 CSK_ANGLE   = 90.0;      // included angle
-SCREW_INSET = 32.0;      // from the back and front faces
+SCREW_INSET = 30.0;      // from the back and front faces
 
 /* [Retention nubs] */
 NUB_H           = 1.5;
 NUB_RAMP_BACK   = 2.5;   // steep side: firm pull to remove
-NUB_FLAT        = 2.0;
-NUB_RAMP_FRONT  = 4.0;   // shallow side: easy push to insert
+NUB_FLAT        = 1.5;
+NUB_RAMP_FRONT  = 3.5;   // shallow side: easy push to insert
 
 /* [Vents] Honeycomb. Cells sit flat-side-up in the build direction, so each
    one closes with a short bridge the width of a single hexagon side rather
    than the 30 degree overhang a point-up cell would give. */
-VENT_AF  = 11.0;         // hexagon across the flats
-VENT_RIB = 3.0;          // material left between cells
-TOP_VENT_BORDER  = 10.0; // solid margin around the top-plate field
-SIDE_VENT_BORDER = 14.0; // solid margin at each end of a side wall
+VENT_AF  = 14.0;         // hexagon across the flats
+VENT_RIB = 2.5;          // material left between cells
+TOP_VENT_BORDER  = 8.0;  // solid margin around the top-plate field
+SIDE_VENT_BORDER = 12.0; // solid margin at each end of a side wall
 SIDE_VENT_MARGIN = 4.0;  // solid wall left above and below the band
 
-PORT_W = 107.0;          // rear cable / port cutout
-PORT_H = 33.0;
+PORT_W = 113.0;          // rear cable / port cutout
+PORT_H = 37.0;
 PORT_R = 6.0;
 CHAMFER = 1.5;           // lead-in around the front opening
 
@@ -83,12 +88,14 @@ OUT_H = TOP_T + CAV_H + SHELF_T;
 X_OUT   = OUT_W / 2;             // outer face of the side walls
 X_CAV   = CAV_W / 2;             // inner face of the side walls
 X_SHELF = X_CAV - SHELF_W;       // inner edge of the shelves
-X_EAR   = X_OUT + EAR_L;         // flange tip
+X_EAR   = X_OUT + EAR_L;         // pad tip
 SCREW_X = X_OUT + EAR_L / 2;
 
 Z_CAV_TOP = -TOP_T;              // ceiling of the pocket
 Z_FLOOR   = -(TOP_T + CAV_H);    // shelf top face = pocket floor
 Z_BOT     = -OUT_H;              // lowest point of the part
+
+SCREW_YS = [SCREW_INSET, OUT_D - SCREW_INSET];   // add a value for a third pair
 
 NUB_Y0 = BACK_T + PC_D + GAP_BACK;          // front face of the PC, pushed home
 NUB_Y1 = NUB_Y0 + NUB_RAMP_BACK;
@@ -101,6 +108,9 @@ EPS = 0.01;
 assert(GAP_TOP > NUB_H, "GAP_TOP must exceed NUB_H or the PC cannot ride in");
 assert(NUB_Y3 < OUT_D, "the nub runs past the front edge; raise FRONT_LIP");
 assert(SHELF_W < X_CAV, "shelves overlap on the centre line");
+assert(EAR_END > EAR_L, "pad ends would overhang steeper than 45 degrees");
+assert(EAR_PAD > 2 * EAR_END, "mounting pads taper away to nothing; raise EAR_PAD");
+assert(EAR_PAD - EAR_END > HEAD_D + 4, "no room for a screw head on the pad");
 
 // --------------------------- helpers --------------------------------------
 
@@ -141,6 +151,24 @@ module honeycomb(u_ext, v_ext, af, rib) {
     }
 }
 
+// One mounting pad, centred on cy: a flat screw pad with a gusset underneath,
+// clipped to a plan trapezoid so both ends run out at 45 degrees.
+module ear(cy) {
+    y0 = cy - EAR_PAD / 2;
+    y1 = cy + EAR_PAD / 2;
+    intersection() {
+        union() {
+            boxc(X_OUT, X_EAR, y0, y1, -EAR_T, 0);
+            extrude_y([[X_OUT, -EAR_ROOT_T], [X_OUT, -EAR_T],
+                       [X_OUT + EAR_TAPER, -EAR_T]], y0, y1);
+        }
+        translate([0, 0, -EAR_ROOT_T - 1])
+            linear_extrude(height = EAR_ROOT_T + 2)
+                polygon([[X_OUT, y0], [X_EAR, y0 + EAR_END],
+                         [X_EAR, y1 - EAR_END], [X_OUT, y1]]);
+    }
+}
+
 // --------------------------- the part --------------------------------------
 
 module body() {
@@ -154,10 +182,8 @@ module body() {
         boxc(X_CAV, X_OUT, 0, OUT_D, Z_BOT, 0);
         // Bottom shelf the PC rests on.
         boxc(X_SHELF, X_CAV, 0, OUT_D, Z_BOT, Z_FLOOR);
-        // Mounting flange: flat screw pad plus a tapered gusset at the root.
-        boxc(X_OUT, X_EAR, 0, OUT_D, -EAR_T, 0);
-        extrude_y([[X_OUT, -EAR_ROOT_T], [X_OUT, -EAR_T],
-                   [X_OUT + EAR_TAPER, -EAR_T]], 0, OUT_D);
+        // Mounting pads.
+        for (cy = SCREW_YS) ear(cy);
         // Retention nub: shallow ramp in, steep ramp out.
         extrude_x([[NUB_Y0, Z_FLOOR], [NUB_Y1, Z_FLOOR + NUB_H],
                    [NUB_Y2, Z_FLOOR + NUB_H], [NUB_Y3, Z_FLOOR]],
@@ -167,7 +193,7 @@ module body() {
 
 module cuts() {
     // Screw holes, countersunk for flat-head screws.
-    for (sx = [-SCREW_X, SCREW_X], sy = [SCREW_INSET, OUT_D - SCREW_INSET]) {
+    for (sx = [-SCREW_X, SCREW_X], sy = SCREW_YS) {
         translate([sx, sy, -EAR_ROOT_T - EPS])
             cylinder(h = EAR_ROOT_T + 2 * EPS, d = SCREW_D);
         if (HEAD_D > SCREW_D)
