@@ -58,6 +58,17 @@ def render(ax, items, view, title):
     ax.set_title(title, fontsize=10, color="#333")
 
 
+def outline(ax, mesh, origin, normal, ij, colour, lw=1.4, label=None):
+    """Plot a planar section straight from its 3D vertices - no frame guessing."""
+    sec = mesh.section(plane_origin=origin, plane_normal=normal)
+    if sec is None:
+        return
+    for n, ent in enumerate(sec.entities):
+        pts = sec.vertices[ent.points]
+        ax.plot(pts[:, ij[0]], pts[:, ij[1]], "-", color=colour, lw=lw,
+                label=label if n == 0 else None)
+
+
 def main():
     p = params("under_desk_minipc_mount.scad")
     z_floor = -(p["TOP_T"] + p["PC_H"] + p["GAP_TOP"])
@@ -70,15 +81,53 @@ def main():
         extents=(230, 200, 18),
         transform=trimesh.transformations.translation_matrix((0, 60, 9)))
 
-    fig, axes = plt.subplots(2, 2, figsize=(13, 10), dpi=120)
+    latch_z = -(p["TOP_T"] + (p["PC_H"] + p["GAP_TOP"]) / 2)
+    x_cav = p["PC_W"] / 2 + p["GAP_SIDE"]
+    x_out = x_cav + p["WALL"]
+    out_d = p["BACK_T"] + p["PC_D"] + p["GAP_BACK"] + p["FRONT_LIP"]
+    pc_front = p["BACK_T"] + p["PC_D"]
+
+    fig, axes = plt.subplots(2, 3, figsize=(19, 10), dpi=120)
     render(axes[0, 0], [(mount, BODY)], (-0.75, 0.85, -0.6),
            "front / right / above - empty")
     render(axes[0, 1], [(mount, BODY), (pc, PC)], (-0.75, 0.85, -0.6),
            "mini PC seated")
-    render(axes[1, 0], [(mount, BODY)], (-0.55, 0.8, 0.55),
+    render(axes[0, 2], [(mount, BODY)], (-0.55, 0.8, 0.55),
            "from below - open bottom, shelves and nubs")
-    render(axes[1, 1], [(desk, DESK), (mount, BODY), (pc, PC)], (-0.6, 0.9, -0.15),
+    render(axes[1, 0], [(desk, DESK), (mount, BODY), (pc, PC)], (-0.6, 0.9, -0.15),
            "screwed under a desk top")
+
+    # Plan cut through the latches: the barb sits behind the PC's front face.
+    ax = axes[1, 1]
+    outline(ax, mount, [0, 0, latch_z], [0, 0, 1], (1, 0), "#334")
+    ax.add_patch(plt.Rectangle((p["BACK_T"], -p["PC_W"] / 2), p["PC_D"], p["PC_W"],
+                               fill=False, ls="--", lw=1.2, color="#b4472e"))
+    ax.annotate("PC, seated", (pc_front - 4, p["PC_W"] / 2 - 9), color="#b4472e",
+                fontsize=8, ha="right")
+    ax.annotate("barb", (out_d - 6, x_cav + 7), color="#334", fontsize=8,
+                ha="center", arrowprops=dict(arrowstyle="->", color="#334", lw=1),
+                xytext=(out_d - 6, x_cav + 14))
+    ax.set_xlim(out_d - 55, out_d + 6)
+    ax.set_ylim(x_out + 6, 40)
+    ax.set_aspect("equal")
+    ax.set_title("plan cut at latch height - right side", fontsize=10, color="#333")
+    ax.tick_params(labelsize=7)
+
+    # Elevation through the wall: the beam, the slots that free it, the barb.
+    ax = axes[1, 2]
+    outline(ax, mount, [(x_cav + x_out) / 2, 0, 0], [1, 0, 0], (1, 2), "#334",
+            label="side wall")
+    outline(ax, mount, [x_cav - p["LATCH_BARB"] / 2, 0, 0], [1, 0, 0], (1, 2),
+            "#b4472e", lw=1.1, label="barb")
+    ax.axvline(pc_front, ls="--", lw=1.0, color="#888")
+    ax.annotate("PC front face", (pc_front - 2, latch_z + 18), rotation=90,
+                fontsize=8, color="#666", ha="right")
+    ax.set_xlim(out_d - 55, out_d + 6)
+    ax.set_ylim(latch_z - 22, latch_z + 22)
+    ax.set_aspect("equal")
+    ax.legend(fontsize=8, loc="lower left", frameon=False)
+    ax.set_title("wall elevation - beam, slots and barb", fontsize=10, color="#333")
+    ax.tick_params(labelsize=7)
     fig.tight_layout()
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
     print(f"wrote {OUT}")

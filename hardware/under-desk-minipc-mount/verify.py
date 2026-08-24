@@ -30,6 +30,8 @@ def params(path):
 
 
 def box(x0, x1, y0, y1, z0, z1):
+    """Box from two opposite corners, in either order."""
+    (x0, x1), (y0, y1), (z0, z1) = sorted((x0, x1)), sorted((y0, y1)), sorted((z0, z1))
     return trimesh.creation.box(
         extents=(x1 - x0, y1 - y0, z1 - z0),
         transform=trimesh.transformations.translation_matrix(
@@ -88,6 +90,7 @@ def main():
     z_floor = -(p["TOP_T"] + cav_h)
     z_cav_top = -p["TOP_T"]
     screw_x = out_w / 2 + p["EAR_L"] / 2
+    latch_y0 = out_d - p["LATCH_LEN"]
 
     mount = trimesh.load(STL)
     check = Checks()
@@ -122,12 +125,57 @@ def main():
                 p["BACK_T"], out_d + pc_d,
                 z_floor + lift, z_floor + lift + pc_h)
     print("insertion")
-    blocked = overlap(mount, sweep)
-    check(blocked < V_TOL, "slide-in path is clear the whole way",
-          f"{blocked:.3f} mm^3")
+    latch_z = (z_cav_top + z_floor) / 2
+    x_cav = cav_w / 2
+    nub_y0 = p["BACK_T"] + pc_d + p["GAP_BACK"]
+    latch_zone = [box(s * (x_cav - p["LATCH_BARB"] - 0.05), s * (out_w / 2 + 5),
+                      nub_y0 - 0.05, out_d + 1,
+                      latch_z - p["LATCH_H"] / 2 - 0.05,
+                      latch_z + p["LATCH_H"] / 2 + 0.05)
+                  for s in (-1.0, 1.0)]
+    hit = trimesh.boolean.intersection([mount, sweep])
+    stray = 0.0
+    if len(hit.faces):
+        rest = trimesh.boolean.difference([hit] + latch_zone)
+        if len(rest.faces):
+            with np.errstate(invalid="ignore", divide="ignore"):
+                stray = float(rest.volume)
+    check(stray < V_TOL, "slide-in path is clear apart from the latches",
+          f"{stray:.3f} mm^3 of stray obstruction")
     check(z_floor + p["NUB_H"] + pc_h + TOL < z_cav_top,
           "PC still clears the top plate while on the nubs",
           f"{z_cav_top - (z_floor + p['NUB_H'] + pc_h):.2f} mm")
+
+    # The beams have to be cut free, and the barbs have to reach past the PC.
+    print("latches")
+    trapped = 0.0
+    for s in (-1.0, 1.0):
+        for zc in (latch_z + p["LATCH_H"] / 2,
+                   latch_z - p["LATCH_H"] / 2 - p["LATCH_SLOT"]):
+            trapped += overlap(mount, box(s * x_cav, s * (out_w / 2),
+                                          latch_y0 + 0.05, out_d - 0.05,
+                                          zc + 0.05, zc + p["LATCH_SLOT"] - 0.05))
+    check(trapped < V_TOL, "both beams are cut free above and below",
+          f"{trapped:.3f} mm^3 bridging a slot")
+
+    # Measure the barb off the mesh rather than trusting the parameter.
+    crest_y = nub_y0 + p["LATCH_BARB"] / np.tan(np.radians(p["LATCH_HOOK"]))
+    crest = trimesh.boolean.intersection(
+        [mount, box(0.0, x_cav, crest_y + 0.05, crest_y + p["LATCH_TIP"] - 0.05,
+                    latch_z - 1, latch_z + 1)])
+    reach = x_cav - crest.bounds[0][0] if len(crest.faces) else 0.0
+    check(abs(reach - p["LATCH_BARB"]) < 0.05,
+          f"barb reaches {p['LATCH_BARB']:.1f} mm into the pocket",
+          f"measured {reach:.2f} mm, so the beam flexes "
+          f"{reach - p['GAP_SIDE']:.2f} mm on the way past")
+
+    # Cross-section standing in front of the seated PC: what it has to push
+    # back through to come out.
+    slab = 0.4
+    catch = overlap(mount, box(-pc_w / 2, pc_w / 2, crest_y, crest_y + slab,
+                               z_floor, z_floor + pc_h)) / slab
+    check(catch > 25.0, "latches and nubs block the way out",
+          f"{catch:.0f} mm^2 of catch across the PC's front face")
 
     # At rest height the PC has GAP_BACK of free travel, then it hits the nubs.
     print("retention")
@@ -150,7 +198,7 @@ def main():
                            out_d - 2 * p["TOP_VENT_BORDER"],
                            p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
     side_cells = vent_cells(cav_h - 2 * p["SIDE_VENT_MARGIN"],
-                            out_d - 2 * p["SIDE_VENT_BORDER"],
+                            latch_y0 - 2 * p["SIDE_VENT_BORDER"],
                             p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
     want_holes = top_cells + 2 * side_cells + 4 + 1      # + screws + port
     genus = (2 - mount.euler_number) // 2
