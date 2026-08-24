@@ -1,0 +1,5 @@
+numpy
+scikit-image
+trimesh
+fast-simplification
+pillow
