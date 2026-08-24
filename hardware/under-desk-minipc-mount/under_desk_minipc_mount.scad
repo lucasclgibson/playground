@@ -53,13 +53,15 @@ NUB_RAMP_BACK   = 2.5;   // steep side: firm pull to remove
 NUB_FLAT        = 2.0;
 NUB_RAMP_FRONT  = 4.0;   // shallow side: easy push to insert
 
-/* [Vents and lightening] */
-TOP_SLOTS      = 5;
-TOP_SLOT_W     = 10.0;
-TOP_SLOT_INSET = 12.0;
-SIDE_SLOT_ZS   = [-14.0, -29.0, -44.0];
-SIDE_SLOT_H    = 10.0;
-SIDE_SLOT_INSET = 24.0;
+/* [Vents] Honeycomb. Cells sit flat-side-up in the build direction, so each
+   one closes with a short bridge the width of a single hexagon side rather
+   than the 30 degree overhang a point-up cell would give. */
+VENT_AF  = 11.0;         // hexagon across the flats
+VENT_RIB = 3.0;          // material left between cells
+TOP_VENT_BORDER  = 10.0; // solid margin around the top-plate field
+SIDE_VENT_BORDER = 14.0; // solid margin at each end of a side wall
+SIDE_VENT_MARGIN = 4.0;  // solid wall left above and below the band
+
 PORT_W = 107.0;          // rear cable / port cutout
 PORT_H = 33.0;
 PORT_R = 6.0;
@@ -119,15 +121,24 @@ module extrude_x(profile, x0, x1) {
         linear_extrude(height = x1 - x0) polygon(profile);
 }
 
-// Slot with semicircular ends, swept along y, rounded across x/z.
-module slot_z(cx, y0, y1, w, z0, z1) {          // through the top plate
-    hull() for (cy = [y0 + w / 2, y1 - w / 2])
-        translate([cx, cy, z0]) cylinder(h = z1 - z0, d = w);
-}
-
-module slot_x(cz, y0, y1, h, x0, x1) {          // through a side wall
-    hull() for (cy = [y0 + h / 2, y1 - h / 2])
-        translate([x0, cy, cz]) rotate([0, 90, 0]) cylinder(h = x1 - x0, d = h);
+// Honeycomb field, centred on the origin and filling u_ext x v_ext. Cells are
+// pointed across u and flat across v, so with v along the build direction the
+// only overhang in the whole grid is the flat top of each cell - one hexagon
+// side wide. Columns that would hang over the edge of the field are dropped
+// rather than clipped, so the border never ends in slivers.
+module honeycomb(u_ext, v_ext, af, rib) {
+    pitch = af + rib;                // centre-to-centre, any direction
+    du = pitch * sqrt(3) / 2;        // column pitch
+    r  = af / sqrt(3);               // circumradius of one cell
+    ncol = floor((u_ext - 2 * r) / du) + 1;
+    nrow = floor((v_ext - af) / pitch) + 1;
+    for (i = [0 : ncol - 1]) {
+        n = nrow - (i % 2);          // staggered columns hold one cell fewer
+        for (j = [0 : n - 1])
+            translate([-(ncol - 1) * du / 2 + i * du,
+                       -(n - 1) * pitch / 2 + j * pitch])
+                circle(r = r, $fn = 6);
+    }
 }
 
 // --------------------------- the part --------------------------------------
@@ -170,17 +181,18 @@ module cuts() {
             translate([cx, -EPS, cz]) rotate([-90, 0, 0])
                 cylinder(h = BACK_T + 2 * EPS, r = PORT_R);
 
-    // Top-plate slots. Long in y, so every bridge is only TOP_SLOT_W wide.
-    pitch = (CAV_W - 2 * TOP_SLOT_INSET) / (TOP_SLOTS - 1);
-    for (i = [0 : TOP_SLOTS - 1])
-        slot_z(-(X_CAV - TOP_SLOT_INSET) + i * pitch,
-               TOP_SLOT_INSET, OUT_D - TOP_SLOT_INSET, TOP_SLOT_W,
-               Z_CAV_TOP - EPS, EPS);
+    // Top-plate honeycomb.
+    translate([0, OUT_D / 2, Z_CAV_TOP - EPS])
+        linear_extrude(height = TOP_T + 2 * EPS)
+            honeycomb(OUT_W - 2 * TOP_VENT_BORDER, OUT_D - 2 * TOP_VENT_BORDER,
+                      VENT_AF, VENT_RIB);
 
-    // Side-wall vents, likewise long in y.
-    for (cz = SIDE_SLOT_ZS, m = [0, 1]) mirror([m, 0, 0])
-        slot_x(cz, SIDE_SLOT_INSET, OUT_D - SIDE_SLOT_INSET, SIDE_SLOT_H,
-               X_CAV - EPS, X_OUT + EPS);
+    // Side-wall honeycomb, across the band of wall that faces the PC.
+    for (m = [0, 1]) mirror([m, 0, 0])
+        translate([X_CAV - EPS, OUT_D / 2, (Z_CAV_TOP + Z_FLOOR) / 2])
+            rotate([0, 90, 0]) linear_extrude(height = WALL + 2 * EPS)
+                honeycomb(CAV_H - 2 * SIDE_VENT_MARGIN,
+                          OUT_D - 2 * SIDE_VENT_BORDER, VENT_AF, VENT_RIB);
 
     // Lead-in chamfer around the front opening (walls and ceiling, not the
     // shelves - the nubs live there).

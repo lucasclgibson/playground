@@ -18,7 +18,7 @@ edit at the top of the `.scad` file.
 | Overall, including mounting flanges | 177 x 144 x 56.5 |
 | Drop below the desk | 56.5 |
 | Screw pattern | 157 across x 80 along |
-| Material | 163 cm3 solid (~120 g at 25% infill) |
+| Material | 154 cm3 solid (~115 g at 25% infill) |
 
 Clearance is 1 mm each side, 2 mm above and 1.5 mm front-to-back, so a device
 that measures a little over its spec still goes in.
@@ -34,16 +34,17 @@ that measures a little over its spec still goes in.
   headroom, so nothing has to flex) and it drops back down behind them. The
   back of each nub is a steeper 31 degree ramp: a firm pull gets the PC out,
   a knock or a tugged cable does not.
-- **Airflow** - open bottom, open front, a 107 x 33 mm rear cutout and three
-  96 x 10 mm vents per side.
+- **Airflow** - open bottom, open front, a 107 x 33 mm rear cutout, and an
+  11 mm honeycomb through the top plate and both side walls: 77 cells
+  overhead (~8,000 mm2 open) and 23 per side (~2,400 mm2 each).
 
 ## Printing
 
 Print `under-desk-minipc-mount-print.stl`. It is the same solid rolled onto
 its back face, which is what makes the part support-free: every wall runs
-along the build direction, so the only overhangs left are the rounded ends of
-the vent slots (10 mm across) and the horizontal screw bores (4.5 mm) - half a
-percent of the surface, and nothing a slicer needs help with.
+along the build direction, and the honeycomb is laid out flat-side-up, so each
+cell closes with a 6.4 mm bridge - one hexagon side - instead of the 30 degree
+overhang a point-up cell would give. Nothing in the part needs support.
 
 | | |
 | --- | --- |
@@ -98,12 +99,21 @@ envelope    177.0 x 144.0 x 56.5 mm
 fit         seated PC clears the frame, 2.00 mm of headroom
 insertion   slide-in path clear the whole way, 0.50 mm clear while on the nubs
 retention   1.4 mm slide-out is free travel, 2.0 mm is stopped by the nubs
+vents       77 top cells, 23 per side wall, 4 screws, 1 port = 128 holes
 fasteners   4 screw holes bored through, flange solid around every hole
-print       sits on z = 0, largest unsupported patch 39 mm2 (a vent slot end)
+print       sits on z = 0, largest unsupported patch 32 mm2 (one cell top)
 ```
 
 So if you retune the fit for a different device, it will tell you whether the
-PC still goes in, still stays in, and still prints without supports.
+PC still goes in, still stays in, and still prints without supports. The vent
+check counts the through-holes in the mesh against the cell count the
+parameters imply, which is what catches a honeycomb field that quietly came
+out empty rather than just a heavier part.
+
+`VENT_AF` and `VENT_RIB` set the cell size and the material between cells;
+`TOP_VENT_BORDER`, `SIDE_VENT_BORDER` and `SIDE_VENT_MARGIN` set the solid
+margins around each field. Cells that would hang over a border are dropped
+whole, so the edges never end in slivers.
 
 ## Notes and limits
 

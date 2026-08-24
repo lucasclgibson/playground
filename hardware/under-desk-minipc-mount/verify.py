@@ -54,6 +54,16 @@ def cylinder(x, y, z0, z1, r):
         transform=trimesh.transformations.translation_matrix((x, y, (z0 + z1) / 2)))
 
 
+def honeycomb_cells(u_ext, v_ext, af, rib):
+    """Cell count of one honeycomb field - mirrors the module in the .scad."""
+    pitch = af + rib
+    du = pitch * np.sqrt(3) / 2
+    r = af / np.sqrt(3)
+    ncol = int((u_ext - 2 * r) // du) + 1
+    nrow = int((v_ext - af) // pitch) + 1
+    return sum(nrow - (i % 2) for i in range(ncol))
+
+
 class Checks:
     def __init__(self):
         self.failed = 0
@@ -130,6 +140,21 @@ def main():
               f"{push:.1f} mm slide-out is "
               + ("stopped by the nubs" if want_block else "free travel"),
               f"{hit:.1f} mm^3 of interference")
+
+    # Vents. Genus counts the through-holes, so a field that silently came out
+    # empty shows up here instead of just as a heavier part.
+    print("vents")
+    top_cells = honeycomb_cells(out_w - 2 * p["TOP_VENT_BORDER"],
+                                out_d - 2 * p["TOP_VENT_BORDER"],
+                                p["VENT_AF"], p["VENT_RIB"])
+    side_cells = honeycomb_cells(cav_h - 2 * p["SIDE_VENT_MARGIN"],
+                                 out_d - 2 * p["SIDE_VENT_BORDER"],
+                                 p["VENT_AF"], p["VENT_RIB"])
+    want_holes = top_cells + 2 * side_cells + 4 + 1      # + screws + port
+    genus = (2 - mount.euler_number) // 2
+    check(genus == want_holes,
+          f"{top_cells} top cells, {side_cells} per side wall, 4 screws, 1 port",
+          f"{genus} through-holes in the mesh, expected {want_holes}")
 
     # Screw holes: clear all the way through, with solid flange around them.
     print("fasteners")
