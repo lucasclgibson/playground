@@ -3,7 +3,8 @@
 A printable cradle that screws to the underside of a desk. The power bank
 slides in end-on from the front and lies flat on two shelves. Nothing latches
 it: it is a heavy brick in a horizontal tray, so it goes in and out from the
-front and that is the whole interaction. The far end is closed off.
+front and that is the whole interaction. The far end is closed off. One side
+wall is slotted through so the band on the brick's side can pass.
 
 ![preview](preview.png)
 
@@ -23,9 +24,42 @@ tray, same shelves, same checks. What changed is below.
 | Overall, including mounting pads | 118.6 x 172.5 x 60.9 |
 | Drop below the desk | 60.9 |
 | Screw pattern | 104.6 across x 112.5 along |
-| Material | 113 cm3 solid (~100 g as printed) |
+| Band slot | 19.2 mm across x 35.6 mm in from the mouth, left wall |
+| Material | 112 cm3 solid (~100 g as printed) |
 
-Clearance is 0.8 mm each side, 1.2 mm above and 1 mm front-to-back.
+Clearance is 0.8 mm each side, 1.2 mm above and 1 mm front-to-back, and 0.6 mm
+all round the band.
+
+## The band slot
+
+The brick carries a raised band on one side: **18 mm across its 52.7 mm face,
+running 32 mm down from the top**. Laid flat in the tray that face is vertical
+and the top of the brick points out of the mouth, so the band ends up on a side
+wall running back from the opening. The wall is cut clean through there rather
+than merely dished - the band stands proud of the brick by an unknown amount,
+and leaving any wall outboard of it would just be a guess.
+
+Two things about it are worth knowing:
+
+- **The slot is 35.6 mm deep, not 32.** The 32 mm is measured on the brick, and
+  the brick's top face sits 4 mm behind the mouth (`FRONT_LIP` 3 mm plus
+  `GAP_BACK` 1 mm). Cutting a literal 32 mm from the mouth would leave the back
+  3.4 mm of the band buried under solid wall and the brick would stop short of
+  the rear wall. The model works back from the seated brick instead, so
+  `BAND_DEPTH = 32` stays the number you measured.
+- **It opens into the mouth**, so it is a notch in the front opening rather than
+  a hole through a closed wall. The wall closes up again behind it and still
+  carries its shelf, the top plate is untouched, and the part is one solid.
+
+`BAND_SIDE = 1` puts it on the **left as you face the open end**. Set it to `-1`
+for the right - that is the whole change; the vent field follows it across.
+`BAND_W`, `BAND_DEPTH` and `BAND_CLR` are the band's own numbers, and `BAND_OFF`
+shifts the slot off the middle of the brick's thickness if the band is not
+centred on that face. The asserts will stop you if the slot would break into a
+shelf or the top plate.
+
+The banded wall's vent field stops one rib short of the slot, so that wall
+carries 18 cells against the other's 20.
 
 ## What changed from the mini PC mount
 
@@ -47,9 +81,11 @@ the new box.
 
 A power bank pushing 100 W gets warm, and the closed back means it breathes
 through the sides and the mouth. Open bottom, open front, and the vent lattice
-through the top plate and both side walls: 49 cells overhead (~6,300 mm2 open)
-and 20 per side (~2,600 mm2 each). If yours runs hot, the back wall is the
-place to put an opening back - it costs nothing structurally.
+through the top plate and both side walls: 49 cells overhead (~6,300 mm2 open),
+20 in the plain wall and 18 in the banded one (~2,600 and ~2,300 mm2). The band
+slot itself is another ~690 mm2 of opening right at the mouth. If yours runs
+hot, the back wall is the place to put an opening back - it costs nothing
+structurally.
 
 ## Printing
 
@@ -76,8 +112,11 @@ the mini PC mount: pilot 2.5-3 mm, screws no longer than
 rather than a drill chuck - the screws sit 7 mm out from a wall that hangs
 60.9 mm down.
 
-Slide the bank in from the front until it meets the back wall. Pull it out the
-same way.
+Slide the bank in from the front until it meets the back wall, band-side to your
+left, the band running down the slot. Pull it out the same way. If your band is
+on the other side, flip `BAND_SIDE` and re-run `./build.sh` rather than mounting
+the tray upside down - the mounting pads and the shelves are not symmetric top
+to bottom.
 
 ## Files
 
@@ -99,7 +138,9 @@ mesh        watertight, one connected solid, consistent winding
 envelope    118.6 x 172.5 x 60.9 mm
 fit         seated bank clears the frame, 1.20 mm of headroom
 slide       slides the whole way in and out, far end closed, 24 mm of shelf
-vents       49 top cells, 20 per side wall, 4 screws, closed back = 93 holes
+band        18 x 32 mm band clears seated and all the way out, wall closes
+            again 35.6 mm in, slot 16.8 mm clear of the shelf and 18.0 of the top
+vents       49 top, 20 plain wall, 18 banded wall, 4 screws, closed = 91 holes
 fasteners   4 bored through, pad solid around each, driver reaches every head
 print       sits on z = 0, largest unsupported patch 17 mm2 (a screw bore)
 ```
@@ -117,3 +158,8 @@ print       sits on z = 0, largest unsupported patch 17 mm2 (a screw bore)
   sprung arms drop straight back in - they are the same tray.
 - If your bank is wedge-shaped or has a rubber foot strip, measure its thickest
   point for `BANK_H`.
+- The band slot is sized from the band, not from how far it sticks out - the cut
+  goes right through the wall, so a strap loop, a rubber band or a moulded rib
+  all clear it equally. What it will not tolerate is the band sitting off-centre
+  on the 52.7 mm face: that is what `BAND_OFF` is for, and a check proves the
+  slot still misses the shelf and the top plate wherever you put it.

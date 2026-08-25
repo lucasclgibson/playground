@@ -90,6 +90,8 @@ def main():
     z_floor = -(p["TOP_T"] + cav_h)
     z_cav_top = -p["TOP_T"]
     screw_x = out_w / 2 + p["EAR_L"] / 2
+    bank_front = p["BACK_T"] + pc_d + p["GAP_BACK"]
+    band_y0 = bank_front - p["BAND_DEPTH"] - p["BAND_CLR"]
 
     mount = trimesh.load(STL)
     check = Checks()
@@ -135,19 +137,58 @@ def main():
           f"{2 * p['SHELF_W']:.0f} mm of shelf carries it",
           f"measured {ledge:.1f} mm across both sides")
 
+    # The band on the brick's side has to pass down the slot the whole way in.
+    print("band")
+    side = 1.0 if p["BAND_SIDE"] > 0 else -1.0
+    band_z = z_floor + pc_h / 2 + p["BAND_OFF"]
+    # Stand it well proud of the wall: the slot is cut right through, so however
+    # far the band sticks out it must meet nothing.
+    def band_box(y0, y1):
+        return box(side * pc_w / 2, side * (out_w / 2 + 10.0), y0, y1,
+                   band_z - p["BAND_W"] / 2, band_z + p["BAND_W"] / 2)
+
+    seated_band = band_box(bank_front - p["BAND_DEPTH"], bank_front)
+    fouled_band = overlap(mount, seated_band)
+    check(fouled_band < V_TOL,
+          f"seated band clears the slot "
+          f"({p['BAND_W']:.0f} mm across, {p['BAND_DEPTH']:.0f} mm down)",
+          f"{fouled_band:.3f} mm^3")
+    swept_band = overlap(mount, band_box(bank_front - p["BAND_DEPTH"],
+                                         bank_front + pc_d))
+    check(swept_band < V_TOL, "band slides the whole way in and out",
+          f"{swept_band:.3f} mm^3 of obstruction")
+    # ... and no further: the wall has to close up again behind it.
+    behind = overlap(mount, box(side * cav_w / 2, side * out_w / 2,
+                                band_y0 - p["VENT_RIB"], band_y0 - 0.1,
+                                band_z - p["BAND_W"] / 2, band_z + p["BAND_W"] / 2))
+    check(behind > V_TOL, "wall closes again behind the slot",
+          f"{behind:.0f} mm^3 of solid wall, slot ends {out_d - band_y0:.1f} mm "
+          f"in from the mouth")
+    check(band_z - p["BAND_W"] / 2 - p["BAND_CLR"] > z_floor + TOL
+          and band_z + p["BAND_W"] / 2 + p["BAND_CLR"] < z_cav_top - TOL,
+          "slot stays clear of the shelf and the top plate",
+          f"{band_z - p['BAND_W'] / 2 - p['BAND_CLR'] - z_floor:.1f} mm below, "
+          f"{z_cav_top - (band_z + p['BAND_W'] / 2 + p['BAND_CLR']):.1f} mm above")
+
     # Vents. Genus counts the through-holes, so a field that silently came out
     # empty shows up here instead of just as a heavier part.
     print("vents")
     top_cells = vent_cells(out_w - 2 * p["TOP_VENT_BORDER"],
                            out_d - 2 * p["TOP_VENT_BORDER"],
                            p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
-    side_cells = vent_cells(cav_h - 2 * p["SIDE_VENT_MARGIN"],
-                            out_d - 2 * p["SIDE_VENT_BORDER"],
+    plain_cells = vent_cells(cav_h - 2 * p["SIDE_VENT_MARGIN"],
+                             out_d - 2 * p["SIDE_VENT_BORDER"],
+                             p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
+    band_cells = vent_cells(cav_h - 2 * p["SIDE_VENT_MARGIN"],
+                            band_y0 - p["VENT_RIB"] - p["SIDE_VENT_BORDER"],
                             p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
-    want_holes = top_cells + 2 * side_cells + 4          # + screws; no rear hole
+    # The band slot opens into the mouth rather than through a closed wall, so
+    # it widens the front opening instead of adding a handle: no extra genus.
+    want_holes = top_cells + plain_cells + band_cells + 4   # + screws; closed back
     genus = (2 - mount.euler_number) // 2
     check(genus == want_holes,
-          f"{top_cells} top cells, {side_cells} per side wall, 4 screws, closed back",
+          f"{top_cells} top cells, {plain_cells} in the plain wall, "
+          f"{band_cells} in the banded wall, 4 screws, closed back",
           f"{genus} through-holes in the mesh, expected {want_holes}")
 
     # Screw holes: clear all the way through, with solid flange around them.

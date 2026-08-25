@@ -14,9 +14,9 @@
 //   y = depth,  0 = back face, +y = towards the open front
 //   z = height, 0 = desk underside (top of the plate and pads), -z = down
 //
-// Render:  openscad -o mount.stl under_desk_minipc_mount.scad
+// Render:  openscad -o mount.stl under_desk_powerbank_tray.scad
 //          openscad -o mount-print.stl -D PRINT_ORIENTATION=true \
-//                   under_desk_minipc_mount.scad
+//                   under_desk_powerbank_tray.scad
 // ---------------------------------------------------------------------------
 
 /* [Power bank] */
@@ -47,6 +47,18 @@ EAR_END    = 21.0;       // run-out at each end; longer than EAR_L keeps the
                          // taper under 45 degrees in the build direction
 EAR_T      = 6.5;        // thickness
 DRIVER_CLR = 2.0;        // clear ring around each head for a bit or driver
+
+/* [Side band] The brick carries a raised band on one side: 18 mm across its
+   52.7 mm face, running 32 mm down from the top. Laid flat, that band ends up
+   on a side wall running back from the mouth, so the wall is slotted right
+   through to let it pass. BAND_DEPTH is measured on the brick, not on the
+   print - the slot has to run further than 32 mm because the brick's top face
+   sits FRONT_LIP + GAP_BACK behind the mouth. */
+BAND_SIDE  = 1;          // +1 = left as you face the open end, -1 = right
+BAND_W     = 18.0;       // band width, across the 52.7 mm face
+BAND_DEPTH = 32.0;       // how far it reaches down from the top of the brick
+BAND_OFF   = 0.0;        // band centre off the middle of the brick's thickness
+BAND_CLR   = 0.6;        // slack around the band, per side
 
 /* [Fasteners] 4x #8 or M4 flat-head wood screws, 20-25 mm long */
 SCREW_D     = 5.0;       // clearance hole, loose on a #8 or M4
@@ -98,6 +110,19 @@ BANK_FRONT = BACK_T + BANK_D + GAP_BACK;         // front face, pushed forward
 VENT_RISE = VENT_W / 2 * tan(VENT_ANGLE);        // height of one pointed end
 VENT_SIDE = VENT_LEN - 2 * VENT_RISE;            // length of the vertical flank
 
+// Band slot. Centred on the brick's thickness, not on the pocket's: the brick
+// sits on the shelf, so that is the datum the band is measured from.
+BAND_Z  = Z_FLOOR + BANK_H / 2 + BAND_OFF;
+BAND_Z0 = BAND_Z - BAND_W / 2 - BAND_CLR;
+BAND_Z1 = BAND_Z + BAND_W / 2 + BAND_CLR;
+BAND_Y0 = BANK_FRONT - BAND_DEPTH - BAND_CLR;    // back end of the slot
+
+// Vent field extents. The banded wall has to stop clear of the slot, so the two
+// side walls carry fields of different length.
+SIDE_VENT_Y0 = SIDE_VENT_BORDER;
+PLAIN_VENT_Y1 = OUT_D - SIDE_VENT_BORDER;
+BAND_VENT_Y1  = BAND_Y0 - VENT_RIB;
+
 CSK_DEPTH = (HEAD_D - SCREW_D) / 2 / tan(CSK_ANGLE / 2);
 EPS = 0.01;
 
@@ -110,6 +135,10 @@ assert(SCREW_X - HEAD_D / 2 - DRIVER_CLR >= X_OUT,
 assert(VENT_ANGLE >= 45, "vent ends would need support");
 assert(VENT_SIDE > 0, "vent cells are too short for their angle; raise VENT_LEN");
 assert(BANK_FRONT + CHAMFER <= OUT_D, "no room for the front chamfer");
+assert(BAND_Z0 > Z_FLOOR, "band slot would break into the shelf; check BAND_OFF");
+assert(BAND_Z1 < Z_CAV_TOP, "band slot would break into the top plate; check BAND_OFF");
+assert(BAND_VENT_Y1 - SIDE_VENT_Y0 > VENT_LEN,
+       "the band slot leaves no room for vents in that wall");
 
 // --------------------------- helpers --------------------------------------
 
@@ -172,6 +201,31 @@ module ear(cy) {
     }
 }
 
+// One side wall's vent field, spanning y0..y1, cut right through the wall.
+module side_vents(y0, y1) {
+    translate([X_CAV - EPS, (y0 + y1) / 2, (Z_CAV_TOP + Z_FLOOR) / 2])
+        rotate([0, 90, 0]) linear_extrude(height = WALL + 2 * EPS)
+            vent_field(CAV_H - 2 * SIDE_VENT_MARGIN, y1 - y0,
+                       VENT_W, VENT_LEN, VENT_ANGLE, VENT_RIB);
+}
+
+// The slot the brick's side band passes through. Cut clean through the wall:
+// the band stands proud of the brick by an unknown amount, so leaving any wall
+// outboard of it would just be a guess. Open at the mouth, so it is a notch in
+// the front opening rather than a hole - the wall closes again behind it and
+// still carries the shelf.
+module band_notch() {
+    boxc(X_CAV - EPS, X_OUT + EPS, BAND_Y0, OUT_D + EPS, BAND_Z0, BAND_Z1);
+    // Lead-in, so the band finds the slot instead of the wall end. Flared 1.5 mm
+    // over a 2.5 mm run: shallower than 45 degrees in the build direction.
+    hull() {
+        boxc(X_CAV - EPS, X_OUT + EPS, OUT_D - CHAMFER, OUT_D - CHAMFER + EPS,
+             BAND_Z0, BAND_Z1);
+        boxc(X_CAV - EPS, X_OUT + EPS, OUT_D + 1 - EPS, OUT_D + 1,
+             BAND_Z0 - CHAMFER, BAND_Z1 + CHAMFER);
+    }
+}
+
 // --------------------------- the part --------------------------------------
 
 module body() {
@@ -206,13 +260,13 @@ module cuts() {
             vent_field(OUT_W - 2 * TOP_VENT_BORDER, OUT_D - 2 * TOP_VENT_BORDER,
                        VENT_W, VENT_LEN, VENT_ANGLE, VENT_RIB);
 
-    // Side-wall vents, across the band of wall that faces the PC.
-    for (m = [0, 1]) mirror([m, 0, 0])
-        translate([X_CAV - EPS, OUT_D / 2, (Z_CAV_TOP + Z_FLOOR) / 2])
-            rotate([0, 90, 0]) linear_extrude(height = WALL + 2 * EPS)
-                vent_field(CAV_H - 2 * SIDE_VENT_MARGIN,
-                           OUT_D - 2 * SIDE_VENT_BORDER,
-                           VENT_W, VENT_LEN, VENT_ANGLE, VENT_RIB);
+    // Side-wall vents, across the band of wall that faces the PC. The banded
+    // wall's field stops one rib short of the slot; the other runs full length.
+    mirror([BAND_SIDE > 0 ? 0 : 1, 0, 0]) side_vents(SIDE_VENT_Y0, BAND_VENT_Y1);
+    mirror([BAND_SIDE > 0 ? 1 : 0, 0, 0]) side_vents(SIDE_VENT_Y0, PLAIN_VENT_Y1);
+
+    // Slot for the band on the brick's side.
+    mirror([BAND_SIDE > 0 ? 0 : 1, 0, 0]) band_notch();
 
     // Lead-in chamfer around the front opening (walls and ceiling, not the
     // shelves - the nubs live there).
@@ -236,6 +290,10 @@ if (PRINT_ORIENTATION) {
     rotate([90, 0, 0]) mount();
 } else {
     mount();
-    if (SHOW_BANK)
+    if (SHOW_BANK) {
         %translate([-BANK_W / 2, BACK_T, Z_FLOOR]) cube([BANK_W, BANK_D, BANK_H]);
+        %mirror([BAND_SIDE > 0 ? 0 : 1, 0, 0])
+            translate([BANK_W / 2, BANK_FRONT - BAND_DEPTH, BAND_Z - BAND_W / 2])
+                cube([WALL + 2, BAND_DEPTH, BAND_W]);
+    }
 }
