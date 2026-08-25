@@ -81,11 +81,11 @@ def main():
         extents=(230, 200, 18),
         transform=trimesh.transformations.translation_matrix((0, 60, 9)))
 
-    latch_z = -(p["TOP_T"] + (p["PC_H"] + p["GAP_TOP"]) / 2)
+    z_floor = -(p["TOP_T"] + p["PC_H"] + p["GAP_TOP"])
     x_cav = p["PC_W"] / 2 + p["GAP_SIDE"]
-    x_out = x_cav + p["WALL"]
     out_d = p["BACK_T"] + p["PC_D"] + p["GAP_BACK"] + p["FRONT_LIP"]
     pc_front = p["BACK_T"] + p["PC_D"]
+    r_demo = 20.0                      # illustrative corner radius
 
     fig, axes = plt.subplots(2, 3, figsize=(19, 10), dpi=120)
     render(axes[0, 0], [(mount, BODY)], (-0.75, 0.85, -0.6),
@@ -93,41 +93,51 @@ def main():
     render(axes[0, 1], [(mount, BODY), (pc, PC)], (-0.75, 0.85, -0.6),
            "mini PC seated")
     render(axes[0, 2], [(mount, BODY)], (-0.55, 0.8, 0.55),
-           "from below - open bottom, shelves and nubs")
+           "from below - shelves and the two sprung arms")
     render(axes[1, 0], [(desk, DESK), (mount, BODY), (pc, PC)], (-0.6, 0.9, -0.15),
            "screwed under a desk top")
 
-    # Plan cut through the latches: the barb sits behind the PC's front face.
+    # Plan: where the barbs land against a machine with rounded corners.
     ax = axes[1, 1]
-    outline(ax, mount, [0, 0, latch_z], [0, 0, 1], (1, 0), "#334")
-    ax.add_patch(plt.Rectangle((p["BACK_T"], -p["PC_W"] / 2), p["PC_D"], p["PC_W"],
-                               fill=False, ls="--", lw=1.2, color="#b4472e"))
-    ax.annotate("PC, seated", (pc_front - 4, p["PC_W"] / 2 - 9), color="#b4472e",
-                fontsize=8, ha="right")
-    ax.annotate("barb", (out_d - 6, x_cav + 7), color="#334", fontsize=8,
-                ha="center", arrowprops=dict(arrowstyle="->", color="#334", lw=1),
-                xytext=(out_d - 6, x_cav + 14))
-    ax.set_xlim(out_d - 55, out_d + 6)
-    ax.set_ylim(x_out + 6, 40)
+    outline(ax, mount, [0, 0, z_floor - p["ARM_T"] / 2], [0, 0, 1], (1, 0),
+            "#9aa7b8", lw=1.0, label="sprung arms")
+    outline(ax, mount, [0, 0, z_floor + p["BARB_H"] / 2], [0, 0, 1], (1, 0),
+            "#334", label="barbs and walls")
+    corner = plt.matplotlib.patches.FancyBboxPatch(
+        (p["BACK_T"] + r_demo, -p["PC_W"] / 2 + r_demo),
+        p["PC_D"] - 2 * r_demo, p["PC_W"] - 2 * r_demo,
+        boxstyle=f"round,pad={r_demo}", fill=False, lw=1.6, color="#b4472e")
+    ax.add_patch(corner)
+    ax.annotate(f"PC, {r_demo:.0f} mm corners", (pc_front - 30, -p["PC_W"] / 2 + 4),
+                color="#b4472e", fontsize=8, ha="center", va="bottom")
+    ax.annotate("no flat face\nout here", (pc_front - 6, p["PC_W"] / 2 - 24),
+                color="#b4472e", fontsize=7.5, ha="right", va="center")
+    ax.annotate("barbs", (pc_front + 4, 0), color="#334", fontsize=8, ha="left",
+                va="center")
+    ax.set_xlim(out_d - 78, out_d + 4)
+    ax.set_ylim(-p["PC_W"] / 2 - 10, p["PC_W"] / 2 + 10)
     ax.set_aspect("equal")
-    ax.set_title("plan cut at latch height - right side", fontsize=10, color="#333")
+    ax.legend(fontsize=8, loc="center left", frameon=False)
+    ax.set_title("plan - barbs reach the flat middle of the face", fontsize=10,
+                 color="#333")
     ax.tick_params(labelsize=7)
 
-    # Elevation through the wall: the beam, the slots that free it, the barb.
+    # Elevation through one arm: the barb profile and the air it ducks into.
     ax = axes[1, 2]
-    outline(ax, mount, [(x_cav + x_out) / 2, 0, 0], [1, 0, 0], (1, 2), "#334",
-            label="side wall")
-    outline(ax, mount, [x_cav - p["LATCH_BARB"] / 2, 0, 0], [1, 0, 0], (1, 2),
-            "#b4472e", lw=1.1, label="barb")
-    ax.axvline(pc_front, ls="--", lw=1.0, color="#888")
-    ax.annotate("PC front face", (pc_front - 2, latch_z + 18), rotation=90,
-                fontsize=8, color="#666", ha="right")
-    ax.set_xlim(out_d - 55, out_d + 6)
-    ax.set_ylim(latch_z - 22, latch_z + 22)
+    outline(ax, mount, [p["ARM_X"], 0, 0], [1, 0, 0], (1, 2), "#334")
+    ax.axvline(pc_front, ls="--", lw=1.0, color="#b4472e")
+    ax.annotate("PC front face", (pc_front - 2, z_floor + 14), rotation=90,
+                fontsize=8, color="#b4472e", ha="right")
+    ax.annotate(f"ducks {p['BARB_H']:.1f} mm", (out_d - 8, z_floor - 10),
+                fontsize=8, color="#666", ha="center")
+    ax.arrow(out_d - 6, z_floor - p["ARM_T"] - 1, 0, -p["BARB_H"] + 1,
+             head_width=1.5, head_length=1.0, fc="#666", ec="#666", lw=0.8)
+    ax.set_xlim(out_d - 34, out_d + 4)
+    ax.set_ylim(z_floor - 12, z_floor + 10)
     ax.set_aspect("equal")
-    ax.legend(fontsize=8, loc="lower left", frameon=False)
-    ax.set_title("wall elevation - beam, slots and barb", fontsize=10, color="#333")
+    ax.set_title("elevation through one arm", fontsize=10, color="#333")
     ax.tick_params(labelsize=7)
+
     fig.tight_layout()
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
     print(f"wrote {OUT}")

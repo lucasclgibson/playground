@@ -90,7 +90,6 @@ def main():
     z_floor = -(p["TOP_T"] + cav_h)
     z_cav_top = -p["TOP_T"]
     screw_x = out_w / 2 + p["EAR_L"] / 2
-    latch_y0 = out_d - p["LATCH_LEN"]
 
     mount = trimesh.load(STL)
     check = Checks()
@@ -119,77 +118,74 @@ def main():
           "headroom above the seated PC",
           f"{z_cav_top - (z_floor + pc_h):.2f} mm")
 
-    # Riding over the nubs, swept from seated to fully withdrawn.
-    lift = p["NUB_H"] + 0.02
-    sweep = box(-pc_w / 2, pc_w / 2,
-                p["BACK_T"], out_d + pc_d,
-                z_floor + lift, z_floor + lift + pc_h)
+    # Swept from seated to fully withdrawn, at rest height - nothing lifts the
+    # PC any more. The barbs are meant to be in the way; they duck.
     print("insertion")
-    latch_z = (z_cav_top + z_floor) / 2
     x_cav = cav_w / 2
-    nub_y0 = p["BACK_T"] + pc_d + p["GAP_BACK"]
-    latch_zone = [box(s * (x_cav - p["LATCH_BARB"] - 0.05), s * (out_w / 2 + 5),
-                      nub_y0 - 0.05, out_d + 1,
-                      latch_z - p["LATCH_H"] / 2 - 0.05,
-                      latch_z + p["LATCH_H"] / 2 + 0.05)
-                  for s in (-1.0, 1.0)]
+    pc_front = p["BACK_T"] + pc_d + p["GAP_BACK"]
+    arm_in, arm_out = p["ARM_X"] - p["ARM_W"] / 2, p["ARM_X"] + p["ARM_W"] / 2
+    sweep = box(-pc_w / 2, pc_w / 2, p["BACK_T"], out_d + pc_d,
+                z_floor + 0.02, z_floor + 0.02 + pc_h)
+    barb_zone = [box(s * (arm_in - 0.05), s * (arm_out + 0.05),
+                     pc_front - 0.05, out_d + 1,
+                     z_floor - 0.05, z_floor + p["BARB_H"] + 0.05)
+                 for s in (-1.0, 1.0)]
     hit = trimesh.boolean.intersection([mount, sweep])
     stray = 0.0
     if len(hit.faces):
-        rest = trimesh.boolean.difference([hit] + latch_zone)
+        rest = trimesh.boolean.difference([hit] + barb_zone)
         if len(rest.faces):
             with np.errstate(invalid="ignore", divide="ignore"):
                 stray = float(rest.volume)
-    check(stray < V_TOL, "slide-in path is clear apart from the latches",
+    check(stray < V_TOL, "slide-in path is clear apart from the barbs",
           f"{stray:.3f} mm^3 of stray obstruction")
-    check(z_floor + p["NUB_H"] + pc_h + TOL < z_cav_top,
-          "PC still clears the top plate while on the nubs",
-          f"{z_cav_top - (z_floor + p['NUB_H'] + pc_h):.2f} mm")
 
-    # The beams have to be cut free, and the barbs have to reach past the PC.
     print("latches")
-    trapped = 0.0
-    for s in (-1.0, 1.0):
-        for zc in (latch_z + p["LATCH_H"] / 2,
-                   latch_z - p["LATCH_H"] / 2 - p["LATCH_SLOT"]):
-            trapped += overlap(mount, box(s * x_cav, s * (out_w / 2),
-                                          latch_y0 + 0.05, out_d - 0.05,
-                                          zc + 0.05, zc + p["LATCH_SLOT"] - 0.05))
-    check(trapped < V_TOL, "both beams are cut free above and below",
-          f"{trapped:.3f} mm^3 bridging a slot")
+    # Where the barbs land matters more than anything else here: out at the
+    # walls a rounded machine has no flat front face to catch.
+    barb = trimesh.boolean.intersection(
+        [mount, box(0.0, x_cav, pc_front + 0.05, out_d,
+                    z_floor + 0.05, z_floor + pc_h)])
+    lo, hi = (barb.bounds if len(barb.faces) else np.zeros((2, 3)))
+    stands = hi[2] - z_floor
+    check(abs(stands - p["BARB_H"]) < 0.05,
+          f"barb stands {p['BARB_H']:.1f} mm above the pocket floor",
+          f"measured {stands:.2f} mm")
+    check(hi[0] <= pc_w / 2 - 25.0,
+          f"barbs land at x {lo[0]:.0f}-{hi[0]:.0f} mm, on flat face",
+          f"clear of a corner radius up to {pc_w / 2 - hi[0]:.0f} mm")
 
-    # Measure the barb off the mesh rather than trusting the parameter.
-    crest_y = nub_y0 + p["LATCH_BARB"] / np.tan(np.radians(p["LATCH_HOOK"]))
-    crest = trimesh.boolean.intersection(
-        [mount, box(0.0, x_cav, crest_y + 0.05, crest_y + p["LATCH_TIP"] - 0.05,
-                    latch_z - 1, latch_z + 1)])
-    reach = x_cav - crest.bounds[0][0] if len(crest.faces) else 0.0
-    check(abs(reach - p["LATCH_BARB"]) < 0.05,
-          f"barb reaches {p['LATCH_BARB']:.1f} mm into the pocket",
-          f"measured {reach:.2f} mm, so the beam flexes "
-          f"{reach - p['GAP_SIDE']:.2f} mm on the way past")
+    # The arms are the spring; they need air underneath to duck into.
+    slack = 0.0
+    for s in (-1.0, 1.0):
+        slack += overlap(mount, box(s * arm_in, s * arm_out, pc_front, out_d,
+                                    z_floor - p["ARM_T"] - p["BARB_H"] - 0.5,
+                                    z_floor - p["ARM_T"] - 0.05))
+    check(slack < V_TOL, "arms have clear air to duck into",
+          f"{slack:.3f} mm^3 under the tips")
 
     # Cross-section standing in front of the seated PC: what it has to push
     # back through to come out.
+    crest_y = pc_front + p["BARB_H"] / np.tan(np.radians(p["BARB_HOOK"]))
     slab = 0.4
     catch = overlap(mount, box(-pc_w / 2, pc_w / 2, crest_y, crest_y + slab,
                                z_floor, z_floor + pc_h)) / slab
-    check(catch > 25.0, "latches and nubs block the way out",
+    check(catch > 25.0, "barbs block the way out",
           f"{catch:.0f} mm^2 of catch across the PC's front face")
 
-    # At rest height the PC has GAP_BACK of free travel, then it hits the nubs.
+    # At rest the PC has GAP_BACK of free travel, then it hits the barbs.
     print("retention")
     for push, want_block in ((p["GAP_BACK"] - 0.1, False),
                              (p["GAP_BACK"] + 0.5, True),
                              (p["GAP_BACK"] + 3.0, True)):
         moved = box(-pc_w / 2, pc_w / 2,
                     p["BACK_T"] + push, p["BACK_T"] + pc_d + push,
-                    z_floor, z_floor + pc_h)
-        hit = overlap(mount, moved)
-        check((hit > V_TOL) == want_block,
+                    z_floor + 0.02, z_floor + 0.02 + pc_h)
+        blocked = overlap(mount, moved)
+        check((blocked > V_TOL) == want_block,
               f"{push:.1f} mm slide-out is "
-              + ("stopped by the nubs" if want_block else "free travel"),
-              f"{hit:.1f} mm^3 of interference")
+              + ("stopped by the barbs" if want_block else "free travel"),
+              f"{blocked:.1f} mm^3 of interference")
 
     # Vents. Genus counts the through-holes, so a field that silently came out
     # empty shows up here instead of just as a heavier part.
@@ -198,7 +194,7 @@ def main():
                            out_d - 2 * p["TOP_VENT_BORDER"],
                            p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
     side_cells = vent_cells(cav_h - 2 * p["SIDE_VENT_MARGIN"],
-                            latch_y0 - 2 * p["SIDE_VENT_BORDER"],
+                            out_d - 2 * p["SIDE_VENT_BORDER"],
                             p["VENT_W"], p["VENT_LEN"], p["VENT_ANGLE"])
     want_holes = top_cells + 2 * side_cells + 4 + 1      # + screws + port
     genus = (2 - mount.euler_number) // 2

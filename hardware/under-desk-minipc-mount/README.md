@@ -2,7 +2,7 @@
 
 A printable cradle that screws to the underside of a desk. The mini PC slides
 straight in from the front, sits on two shelves, and clicks in behind a pair of
-sprung latches. No brackets, no straps, no fasteners into the PC itself.
+sprung arms. No brackets, no straps, no fasteners into the PC itself.
 
 ![preview](preview.png)
 
@@ -13,14 +13,14 @@ edit at the top of the `.scad` file.
 
 | | mm |
 | --- | --- |
-| Pocket (W x D x H) | 131 x 130.5 x 47.5 |
-| Body (W x D x H) | 137 x 142 x 54.5 |
-| Overall, including mounting pads | 165 x 142 x 54.5 |
-| Drop below the desk | 54.5 |
-| Screw pattern | 151 across x 82 along |
-| Material | 99 cm3 solid (~89 g as printed) |
+| Pocket (W x D x H) | 131 x 130.5 x 47.0 |
+| Body (W x D x H) | 137 x 144 x 54.0 |
+| Overall, including mounting pads | 165 x 144 x 54.0 |
+| Drop below the desk | 54.0 |
+| Screw pattern | 151 across x 84 along |
+| Material | 102 cm3 solid (~92 g as printed) |
 
-Clearance is 1 mm each side, 2 mm above and 1.5 mm front-to-back, so a device
+Clearance is 1 mm each side, 1.5 mm above and 1.5 mm front-to-back, so a device
 that measures a little over its spec still goes in.
 
 ## How it holds the PC
@@ -29,26 +29,21 @@ that measures a little over its spec still goes in.
   underside is open, so the intake fan is not covered.
 - **Rear wall** - depth stop, with a 113 x 37 mm cutout so the rear ports and
   cables stay accessible.
-- **Latches** - a cantilever tab cut into each side wall, 40 x 10 mm, rooted at
-  the back and free at the mouth. The PC's own side face pushes each tab 1.6 mm
-  outward as it goes in; once the front face clears the barb the tabs snap back
-  and you hear it. About 0.7 kgf to push in. Coming back the other way the barb
-  presents a 70 degree face instead of a ramp, which needs somewhere between 5
-  and 12 kgf depending on friction - so it does not back out. Press the two
-  flares at the front corners to let it go.
-- **Retention nubs** - a bump on each shelf just ahead of the PC, a backstop
-  under the latches. Pushing the PC in lifts it 1.5 mm over a shallow 23 degree
-  ramp (there is 2 mm of headroom, so nothing has to flex) and it drops back
-  down behind them - that drop is what tells you it is home.
-- **Mounting pads** - four tabs rather than full-length flanges, 48 mm long on
-  a 151 x 82 mm pattern, tapered at both ends so they still print unsupported.
-  They are a uniform 6.5 mm rather than thin-with-a-gusset: a gusset at the
-  root reaches in under the screw head and fouls the driver. Every head has a
-  clear 6.8 mm radius below it.
+- **Latches** - two sprung arms sweep in from the shelves to the middle of the
+  mouth and stand a 3.5 mm barb in front of the PC. They reach that far in on
+  purpose: on a machine with rounded corners there is no flat front face out
+  near the walls - with a 20 mm radius the face is already 7 mm back at
+  x = 60 - so a barb there catches nothing. At x = 8-20 the face is flat for
+  any corner radius up to 44 mm. The PC's underside presses each arm down over
+  a 30 degree ramp on the way in and they spring back behind the front face
+  with a click. Somewhere between 0.3 and 0.6 kgf for the pair, depending on
+  how much the shelf root gives. Coming out, the barb presents a 70 degree
+  face instead of a ramp: press both arms down through the open underside and
+  pull. The arms sit flush with the pocket floor, so they also carry the
+  middle of the PC.
 - **Airflow** - open bottom, open front, a 113 x 37 mm rear cutout, and a
   12 x 26 mm vent lattice through the top plate and both side walls: 66 cells
-  overhead (~8,500 mm2 open) and 10 per side (~1,300 mm2 each, plus 160 mm2 of
-  latch slot). The side field stops short of the latch beams.
+  overhead (~8,500 mm2 open) and 18 per side (~2,300 mm2 each).
 
 ## Printing
 
@@ -57,11 +52,11 @@ its back face, which is what makes the part support-free: every wall runs
 along the build direction, and the vent cells are hexagons stretched to a
 point at each end, the points along that direction. A cell closes at 60
 degrees from horizontal rather than bridging flat across its width, so the
-lattice needs no bridging at all. The latch slots run out of the front face,
-so they open at the top of the print rather than closing over one. What is
-left is 0.2% of the surface: the four horizontal screw bores, and the 2.6 mm
-ledge behind each barb - a latch that resists pulling has to face the way the
-PC travels, which is the build direction, and there is no way around that.
+lattice needs no bridging at all, and the arms sweep in at 40 degrees, under
+the angle where a leaning wall needs help. What is left is 0.3% of the
+surface: the four horizontal screw bores, and the 3.5 mm ledge behind each
+barb - a latch that resists pulling has to face the way the PC travels, which
+is the build direction, and there is no way around that.
 
 | | |
 | --- | --- |
@@ -87,10 +82,10 @@ a bit extension rather than a drill chuck.
 2. Pilot drill 2.5-3 mm, **no deeper than the desk is thick minus 3 mm**.
 3. Pick screws no longer than `6.5 mm + desk thickness - 3 mm` - on an 18 mm
    desk top that is a 20 mm screw at most.
-4. Drive all four, then slide the PC in until the latches click.
+4. Drive all four, then slide the PC in until the arms click.
 
-To take the PC out, press both release flares at the front corners outward and
-pull. Pulling without pressing will not do it, which is the point.
+To take the PC out, reach under the open bottom, press both arms down near the
+mouth, and pull. Pulling without pressing will not do it, which is the point.
 
 Solid wood, plywood and particle board all take screws fine. On a glass or
 metal desk, the pads are flat and take 20 mm wide VHB tape instead.
@@ -120,12 +115,12 @@ of the `.scad` and checks the exported mesh against them:
 mesh        watertight, one connected solid, consistent winding
 envelope    165.0 x 142.0 x 54.5 mm
 fit         seated PC clears the frame, 2.00 mm of headroom
-insertion   path clear apart from the latches, 0.50 mm clear while on the nubs
-latches     beams cut free, barb reaches 2.6 mm, 47 mm2 of catch across the face
+insertion   slide-in path is clear apart from the barbs
+latches     barbs stand 3.5 mm proud at x 8-20 mm, 84 mm2 of catch, air to duck
 retention   1.4 mm slide-out is free travel, 2.0 mm is stopped
-vents       66 top cells, 10 per side wall, 4 screws, 1 port = 91 holes
+vents       66 top cells, 18 per side wall, 4 screws, 1 port = 107 holes
 fasteners   4 bored through, pad solid around each, driver reaches every head
-print       sits on z = 0, largest unsupported patch 28 mm2 (a barb ledge)
+print       sits on z = 0, largest unsupported patch 45 mm2 (a barb ledge)
 ```
 
 So if you retune the fit for a different device, it will tell you whether the
@@ -134,12 +129,14 @@ check counts the through-holes in the mesh against the cell count the
 parameters imply, which is what catches a vent field that quietly came
 out empty rather than just a heavier part.
 
-`LATCH_LEN` is the lever that sets how hard the click is: at 40 mm the beam
-takes 3.4 N to flex and sees 9 MPa at its root, a third of what PETG manages
-across layer lines. Shorten it and both numbers climb fast - 25 mm would be
-14 N and 23 MPa. `LATCH_BARB` sets how far the tab reaches past the PC (it
-flexes that minus `GAP_SIDE`), and `LATCH_HOOK` how steeply it refuses to come
-back out; 90 would be a dead stop that only releases by pressing.
+`ARM_X` is the one to watch: it sets how far in from the centre line each barb
+lands, and `verify.py` reports the largest corner radius that still leaves flat
+face under it. `ARM_T` and `ARM_ANGLE` set the click - the arm is a cantilever,
+so force goes as thickness cubed and falls off as length cubed. At 4 mm thick
+it sees 4-7 MPa at the root, well under what PETG manages across layer lines,
+which is the number that matters because the arm prints along the build
+direction. `BARB_H` is how far it stands proud, and `BARB_HOOK` how steeply it
+refuses to come back out; 90 would be a dead stop.
 
 `VENT_W`, `VENT_LEN` and `VENT_RIB` set the cell size and the web between
 cells, and `VENT_ANGLE` sets how steeply each cell closes - drop it towards 45
@@ -152,12 +149,13 @@ hang over a border are dropped whole, so the edges never end in slivers.
 
 ## Notes and limits
 
-- The pocket is a slip fit, not a clamp. The PC rests on the shelves under its
-  own weight and the latches stop it sliding forward. Mount it under a
+- The pocket is a slip fit, not a clamp. The PC rests on the shelves and the
+  arms under its own weight, and the barbs stop it sliding forward. Mount it under a
   horizontal surface, not on a wall.
-- The barbs catch the left and right edges of the PC's front face, 1.6 mm in
-  and 10 mm tall, around mid height. If your machine has a deep chamfer or a
-  soft rubber bezel there, raise `LATCH_BARB` so there is more to bite on.
+- The barbs catch the bottom 3.5 mm of the PC's front face, in from the centre
+  line. A machine with a deep radius or a soft foot along its bottom front edge
+  has less flat face down there to bite on - raise `BARB_H` for more, at the
+  cost of a slightly longer unsupported ledge on the print.
 - The top plate beds directly against the desk, so the 2 mm above the PC is a
   dead gap, not a cooling path. Heat leaves through the open bottom, front,
   rear cutout and side vents.

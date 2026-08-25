@@ -24,7 +24,7 @@ PC_H = 45.5;             // top-bottom
 
 /* [Fit] */
 GAP_SIDE = 1.0;          // per side
-GAP_TOP  = 2.0;          // must be larger than NUB_H
+GAP_TOP  = 1.5;          // pure clearance: nothing lifts the PC
 GAP_BACK = 1.5;          // front-back slack between rear wall and nubs
 
 /* [Structure] */
@@ -33,7 +33,7 @@ TOP_T     = 3.0;         // top plate, the face that meets the desk
 SHELF_T   = 4.0;         // bottom support lips
 SHELF_W   = 12.0;        // how far the lips reach in from each wall
 BACK_T    = 3.5;         // rear stop wall
-FRONT_LIP = 8.0;         // tray depth ahead of the seated PC, carries the nubs
+FRONT_LIP = 10.0;        // tray depth ahead of the PC, carries the barbs
 
 /* [Mounting pads] Four tabs rather than full-length flanges: the same screw
    pattern for a third of the material. Uniform thickness on purpose - a
@@ -52,27 +52,19 @@ HEAD_D      = 9.5;       // countersink top diameter; set = SCREW_D to disable
 CSK_ANGLE   = 90.0;      // included angle
 SCREW_INSET = 30.0;      // from the back and front faces
 
-/* [Latches] A cantilever tab in each side wall. The PC's side face pushes it
-   out on the way in and it snaps in behind the front face with a click. The
-   beam is a strip of the wall itself, freed by a slot above and below and
-   rooted at the back, so the slots open out of the front face and the whole
-   thing prints without a bridge. */
-LATCH_LEN   = 40.0;      // cantilever length: longer is softer, less stressed
-LATCH_H     = 10.0;      // beam height
-LATCH_SLOT  = 2.0;       // gap freeing the beam above and below
-LATCH_BARB  = 2.6;       // reach into the pocket; it flexes this minus GAP_SIDE
-LATCH_LEAD  = 30.0;      // lead-in ramp, from the direction of travel
-LATCH_HOOK  = 70.0;      // retaining face; 90 would be a dead stop
-LATCH_TIP   = 0.5;       // flat at the crest
-LATCH_LIP   = 2.0;       // outward flare at the free end - press to release
-LATCH_LIP_L = 8.0;       // length of that flare
-
-/* [Retention nubs] Backstop under the PC, and the drop that tells you it is
-   home. The latches do the holding. */
-NUB_H           = 1.5;
-NUB_RAMP_BACK   = 2.5;   // steep side: firm pull to remove
-NUB_FLAT        = 1.5;
-NUB_RAMP_FRONT  = 3.5;   // shallow side: easy push to insert
+/* [Latches] Two sprung arms sweep in from the shelves to the middle of the
+   mouth and stand a barb up in front of the PC. They reach the middle on
+   purpose: a machine with rounded corners has no flat front face out at the
+   walls, so a barb there catches nothing. The arms are the spring, they flex
+   down into the open underside, and you press them to let the PC out. */
+ARM_W     = 12.0;        // arm width
+ARM_T     = 4.0;         // arm thickness - this is the spring
+ARM_X     = 14.0;        // how far out from the centre line each barb sits
+ARM_ANGLE = 40.0;        // sweep from the direction of travel; under 45 prints clean
+BARB_H    = 3.5;         // how far the barb stands above the pocket floor
+BARB_LEAD = 30.0;        // lead-in ramp: the PC's underside presses the arm down
+BARB_HOOK = 70.0;        // retaining face; 90 would be a dead stop
+BARB_FLAT = 1.0;         // flat at the crest
 
 /* [Vents] Stretched honeycomb: hexagons with vertical flanks and pointed
    ends, the points along the build direction. A cell closes at VENT_ANGLE
@@ -116,19 +108,13 @@ Z_BOT     = -OUT_H;              // lowest point of the part
 
 SCREW_YS = [SCREW_INSET, OUT_D - SCREW_INSET];   // add a value for a third pair
 
-NUB_Y0 = BACK_T + PC_D + GAP_BACK;          // front face of the PC, pushed home
-NUB_Y1 = NUB_Y0 + NUB_RAMP_BACK;
-NUB_Y2 = NUB_Y1 + NUB_FLAT;
-NUB_Y3 = NUB_Y2 + NUB_RAMP_FRONT;
+PC_FRONT  = BACK_T + PC_D + GAP_BACK;            // front face, pushed forward
+BARB_Y1   = PC_FRONT + BARB_H / tan(BARB_HOOK);  // crest, back edge
+BARB_Y2   = BARB_Y1 + BARB_FLAT;                 // crest, front edge
+BARB_Y3   = BARB_Y2 + BARB_H / tan(BARB_LEAD);   // foot of the lead-in ramp
 
-LATCH_Y0   = OUT_D - LATCH_LEN;                  // root of the beam
-LATCH_Z    = (Z_CAV_TOP + Z_FLOOR) / 2;          // mid pocket
-LATCH_HOOK_RUN = LATCH_BARB / tan(LATCH_HOOK);
-LATCH_END  = NUB_Y0 + LATCH_HOOK_RUN + LATCH_TIP + LATCH_BARB / tan(LATCH_LEAD);
-LATCH_FLEX = LATCH_BARB - GAP_SIDE;              // deflection while sliding in
-
-SIDE_VENT_Y0 = SIDE_VENT_BORDER;                 // vents stop clear of the
-SIDE_VENT_Y1 = LATCH_Y0 - SIDE_VENT_BORDER;      // latch beams
+ARM_KNEE  = PC_FRONT - 4;                        // where the sweep straightens
+ARM_ROOT  = ARM_KNEE - (X_OUT - ARM_X) / tan(ARM_ANGLE);   // buried in the wall
 
 VENT_RISE = VENT_W / 2 * tan(VENT_ANGLE);        // height of one pointed end
 VENT_SIDE = VENT_LEN - 2 * VENT_RISE;            // length of the vertical flank
@@ -136,8 +122,6 @@ VENT_SIDE = VENT_LEN - 2 * VENT_RISE;            // length of the vertical flank
 CSK_DEPTH = (HEAD_D - SCREW_D) / 2 / tan(CSK_ANGLE / 2);
 EPS = 0.01;
 
-assert(GAP_TOP > NUB_H, "GAP_TOP must exceed NUB_H or the PC cannot ride in");
-assert(NUB_Y3 < OUT_D, "the nub runs past the front edge; raise FRONT_LIP");
 assert(SHELF_W < X_CAV, "shelves overlap on the centre line");
 assert(EAR_END > EAR_L, "pad ends would overhang steeper than 45 degrees");
 assert(EAR_PAD > 2 * EAR_END, "mounting pads taper away to nothing; raise EAR_PAD");
@@ -146,12 +130,10 @@ assert(SCREW_X - HEAD_D / 2 - DRIVER_CLR >= X_OUT,
        "the side wall crowds the screw heads; raise EAR_L");
 assert(VENT_ANGLE >= 45, "vent ends would need support");
 assert(VENT_SIDE > 0, "vent cells are too short for their angle; raise VENT_LEN");
-assert(LATCH_BARB > GAP_SIDE, "the barb never reaches past the side of the PC");
-assert(LATCH_Y0 < NUB_Y0 - 5, "latch root is too near the barb; raise LATCH_LEN");
-assert(LATCH_END <= OUT_D - CHAMFER, "the barb runs into the front chamfer");
-assert(LATCH_Z + LATCH_H / 2 + LATCH_SLOT < Z_CAV_TOP &&
-       LATCH_Z - LATCH_H / 2 - LATCH_SLOT > Z_FLOOR, "the latch will not fit the wall");
-assert(SIDE_VENT_Y1 - SIDE_VENT_Y0 > VENT_LEN, "no room left for side vents");
+assert(BARB_Y3 <= OUT_D - CHAMFER, "the barb runs into the front chamfer");
+assert(ARM_X + ARM_W / 2 < X_SHELF, "the arms would foul the shelves");
+assert(ARM_ANGLE < 45, "the arm sweep would need support");
+assert(ARM_ROOT > BACK_T, "the arm root runs into the back wall; sweep it harder");
 
 // --------------------------- helpers --------------------------------------
 
@@ -214,22 +196,34 @@ module ear(cy) {
     }
 }
 
-// The barb on a latch beam: a shallow ramp facing the mouth so the PC pushes
-// the tab aside on the way in, and a steep face behind it so it does not come
-// back out the same way.
-module latch_barb() {
-    translate([0, 0, LATCH_Z - LATCH_H / 2]) linear_extrude(height = LATCH_H)
-        polygon([[X_CAV, NUB_Y0],
-                 [X_CAV - LATCH_BARB, NUB_Y0 + LATCH_HOOK_RUN],
-                 [X_CAV - LATCH_BARB, NUB_Y0 + LATCH_HOOK_RUN + LATCH_TIP],
-                 [X_CAV, LATCH_END]]);
+// One sprung arm in plan: swept in from the wall at ARM_ANGLE, then straight
+// for the last stretch, where the barb sits. The root is buried in the wall
+// and shelf, so the arm grows sideways out of supported material instead of
+// starting in mid air, and the sweep stays under 45 degrees the whole way.
+module arm_plan() {
+    adx = ARM_X - X_OUT;
+    ady = ARM_KNEE - ARM_ROOT;
+    alen = sqrt(adx * adx + ady * ady);
+    nx = ady / alen * ARM_W / 2;                 // normal to the sweep
+    ny = -adx / alen * ARM_W / 2;
+    polygon([[X_OUT + nx, ARM_ROOT + ny], [ARM_X + nx, ARM_KNEE + ny],
+             [ARM_X - nx, ARM_KNEE - ny], [X_OUT - nx, ARM_ROOT - ny]]);
+    translate([ARM_X - ARM_W / 2, ARM_KNEE - ARM_W])
+        square([ARM_W, OUT_D - ARM_KNEE + ARM_W]);
 }
 
-// Flare on the outside of the free end: something to press to let the PC out.
-module latch_lip() {
-    translate([0, 0, LATCH_Z - LATCH_H / 2]) linear_extrude(height = LATCH_H)
-        polygon([[X_OUT, OUT_D - LATCH_LIP_L], [X_OUT + LATCH_LIP, OUT_D],
-                 [X_OUT, OUT_D]]);
+// The arm sits flush with the pocket floor, so it also carries the middle of
+// the PC, and hangs free underneath where it has room to flex.
+module arm() {
+    translate([0, 0, Z_FLOOR - ARM_T]) linear_extrude(height = ARM_T) arm_plan();
+}
+
+// Shallow ramp facing the mouth so the PC's underside presses the arm down on
+// the way in; steep face behind it so it will not come back out that way.
+module arm_barb() {
+    extrude_x([[PC_FRONT, Z_FLOOR], [BARB_Y1, Z_FLOOR + BARB_H],
+               [BARB_Y2, Z_FLOOR + BARB_H], [BARB_Y3, Z_FLOOR]],
+              ARM_X - ARM_W / 2, ARM_X + ARM_W / 2);
 }
 
 // --------------------------- the part --------------------------------------
@@ -247,13 +241,9 @@ module body() {
         boxc(X_SHELF, X_CAV, 0, OUT_D, Z_BOT, Z_FLOOR);
         // Mounting pads.
         for (cy = SCREW_YS) ear(cy);
-        // Latch tab: barb inside, release flare outside.
-        latch_barb();
-        latch_lip();
-        // Retention nub: shallow ramp in, steep ramp out.
-        extrude_x([[NUB_Y0, Z_FLOOR], [NUB_Y1, Z_FLOOR + NUB_H],
-                   [NUB_Y2, Z_FLOOR + NUB_H], [NUB_Y3, Z_FLOOR]],
-                  X_SHELF, X_CAV);
+        // Sprung latch arm, reaching in to where the front face is flat.
+        arm();
+        arm_barb();
     }
 }
 
@@ -279,21 +269,13 @@ module cuts() {
             vent_field(OUT_W - 2 * TOP_VENT_BORDER, OUT_D - 2 * TOP_VENT_BORDER,
                        VENT_W, VENT_LEN, VENT_ANGLE, VENT_RIB);
 
-    // Side-wall vents, across the band of wall that faces the PC, stopping
-    // short of the latch beams.
+    // Side-wall vents, across the band of wall that faces the PC.
     for (m = [0, 1]) mirror([m, 0, 0])
-        translate([X_CAV - EPS, (SIDE_VENT_Y0 + SIDE_VENT_Y1) / 2, LATCH_Z])
+        translate([X_CAV - EPS, OUT_D / 2, (Z_CAV_TOP + Z_FLOOR) / 2])
             rotate([0, 90, 0]) linear_extrude(height = WALL + 2 * EPS)
                 vent_field(CAV_H - 2 * SIDE_VENT_MARGIN,
-                           SIDE_VENT_Y1 - SIDE_VENT_Y0,
+                           OUT_D - 2 * SIDE_VENT_BORDER,
                            VENT_W, VENT_LEN, VENT_ANGLE, VENT_RIB);
-
-    // Slots freeing each latch beam. They run out of the front face, so they
-    // open at the top of the print and never need bridging.
-    for (m = [0, 1]) mirror([m, 0, 0])
-        for (zc = [LATCH_Z + LATCH_H / 2, LATCH_Z - LATCH_H / 2 - LATCH_SLOT])
-            boxc(X_CAV - EPS, X_OUT + LATCH_LIP + EPS,
-                 LATCH_Y0, OUT_D + EPS, zc, zc + LATCH_SLOT);
 
     // Lead-in chamfer around the front opening (walls and ceiling, not the
     // shelves - the nubs live there).
