@@ -13,15 +13,16 @@ edit at the top of the `.scad` file.
 
 | | mm |
 | --- | --- |
-| Pocket (W x D x H) | 131 x 130.5 x 47.0 |
-| Body (W x D x H) | 137 x 144 x 54.0 |
-| Overall, including mounting pads | 165 x 144 x 54.0 |
-| Drop below the desk | 54.0 |
-| Screw pattern | 151 across x 84 along |
-| Material | 102 cm3 solid (~92 g as printed) |
+| Pocket (W x D x H) | 130.6 x 130 x 46.7 |
+| Body (W x D x H) | 136.6 x 143.5 x 54.7 |
+| Overall, including mounting pads | 164.6 x 143.5 x 54.7 |
+| Drop below the desk | 54.7 |
+| Screw pattern | 151 across x 83.5 along |
+| Material | 111 cm3 solid (~100 g as printed) |
 
-Clearance is 1 mm each side, 1.5 mm above and 1.5 mm front-to-back, so a device
-that measures a little over its spec still goes in.
+Clearance is 0.8 mm each side, 1.2 mm above and 1 mm front-to-back - snug, but
+with enough left that a print coming out a few tenths tight still takes the
+device.
 
 ## How it holds the PC
 
@@ -33,14 +34,15 @@ that measures a little over its spec still goes in.
   mouth and stand a 3.5 mm barb in front of the PC. They reach that far in on
   purpose: on a machine with rounded corners there is no flat front face out
   near the walls - with a 20 mm radius the face is already 7 mm back at
-  x = 60 - so a barb there catches nothing. At x = 8-20 the face is flat for
-  any corner radius up to 44 mm. The PC's underside presses each arm down over
+  x = 60 - so a barb there catches nothing. At x = 6-22 the face is flat for
+  any corner radius up to 42 mm. The PC's underside presses each arm down over
   a 30 degree ramp on the way in and they spring back behind the front face
-  with a click. Somewhere between 0.3 and 0.6 kgf for the pair, depending on
-  how much the shelf root gives. Coming out, the barb presents a 70 degree
-  face instead of a ramp: press both arms down through the open underside and
-  pull. The arms sit flush with the pocket floor, so they also carry the
-  middle of the PC.
+  with a click - 0.8 to 1.8 kgf for the pair, depending on how much the shelf
+  root gives. The face behind the barb is **square**: there is no angle for the
+  PC to cam its way up, so pressing buttons or tugging a cable cannot walk it
+  out. To release, press both arms down through the open underside and pull.
+  The arms sit flush with the pocket floor, so they also carry the middle of
+  the PC.
 - **Airflow** - open bottom, open front, a 113 x 37 mm rear cutout, and a
   12 x 26 mm vent lattice through the top plate and both side walls: 66 cells
   overhead (~8,500 mm2 open) and 18 per side (~2,300 mm2 each).
@@ -54,9 +56,12 @@ point at each end, the points along that direction. A cell closes at 60
 degrees from horizontal rather than bridging flat across its width, so the
 lattice needs no bridging at all, and the arms sweep in at 40 degrees, under
 the angle where a leaning wall needs help. What is left is 0.3% of the
-surface: the four horizontal screw bores, and the 3.5 mm ledge behind each
-barb - a latch that resists pulling has to face the way the PC travels, which
-is the build direction, and there is no way around that.
+surface: the four horizontal screw bores, and the 16 x 3.5 mm face behind each
+barb. That face is the dead stop, so it is square to the way the PC travels,
+which is the build direction - it prints as a flat roof and will sag a little
+on the first layer across it. The sag leans back into the 1 mm of front-to-back
+slack, so it costs nothing; if you would rather have it crisp, drop
+`BARB_HOOK` to about 75, at the cost of a face the PC can cam against.
 
 | | |
 | --- | --- |
@@ -113,14 +118,14 @@ of the `.scad` and checks the exported mesh against them:
 
 ```
 mesh        watertight, one connected solid, consistent winding
-envelope    165.0 x 142.0 x 54.5 mm
-fit         seated PC clears the frame, 2.00 mm of headroom
+envelope    164.6 x 143.5 x 54.7 mm
+fit         seated PC clears the frame, 1.20 mm of headroom
 insertion   slide-in path is clear apart from the barbs
-latches     barbs stand 3.5 mm proud at x 8-20 mm, 84 mm2 of catch, air to duck
-retention   1.4 mm slide-out is free travel, 2.0 mm is stopped
+latches     barbs stand 3.5 mm proud at x 6-22 mm, 112 mm2 of catch, air to duck
+retention   0.9 mm slide-out is free travel, 1.5 mm is stopped
 vents       66 top cells, 18 per side wall, 4 screws, 1 port = 107 holes
 fasteners   4 bored through, pad solid around each, driver reaches every head
-print       sits on z = 0, largest unsupported patch 45 mm2 (a barb ledge)
+print       sits on z = 0, largest unsupported patch 56 mm2 (a barb face)
 ```
 
 So if you retune the fit for a different device, it will tell you whether the
@@ -131,12 +136,12 @@ out empty rather than just a heavier part.
 
 `ARM_X` is the one to watch: it sets how far in from the centre line each barb
 lands, and `verify.py` reports the largest corner radius that still leaves flat
-face under it. `ARM_T` and `ARM_ANGLE` set the click - the arm is a cantilever,
-so force goes as thickness cubed and falls off as length cubed. At 4 mm thick
-it sees 4-7 MPa at the root, well under what PETG manages across layer lines,
+face under it. `ARM_W` and `ARM_T` set the click - the arm is a cantilever, so
+force goes as thickness cubed and falls off as length cubed. At 16 x 5 mm it
+sees 5-9 MPa at the root, well under what PETG manages across layer lines,
 which is the number that matters because the arm prints along the build
-direction. `BARB_H` is how far it stands proud, and `BARB_HOOK` how steeply it
-refuses to come back out; 90 would be a dead stop.
+direction; 12 x 4 was 2.6 times softer. `BARB_H` is how far it stands proud, and `BARB_HOOK` how steeply it
+refuses to come back out; at 90 it is a dead stop.
 
 `VENT_W`, `VENT_LEN` and `VENT_RIB` set the cell size and the web between
 cells, and `VENT_ANGLE` sets how steeply each cell closes - drop it towards 45

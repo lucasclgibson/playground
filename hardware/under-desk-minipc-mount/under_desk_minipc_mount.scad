@@ -23,9 +23,9 @@ PC_D = 129.0;            // front-back
 PC_H = 45.5;             // top-bottom
 
 /* [Fit] */
-GAP_SIDE = 1.0;          // per side
-GAP_TOP  = 1.5;          // pure clearance: nothing lifts the PC
-GAP_BACK = 1.5;          // front-back slack between rear wall and nubs
+GAP_SIDE = 0.8;          // per side
+GAP_TOP  = 1.2;          // pure clearance: nothing lifts the PC
+GAP_BACK = 1.0;          // front-back slack between rear wall and barbs
 
 /* [Structure] */
 WALL      = 3.0;         // side walls
@@ -57,13 +57,13 @@ SCREW_INSET = 30.0;      // from the back and front faces
    purpose: a machine with rounded corners has no flat front face out at the
    walls, so a barb there catches nothing. The arms are the spring, they flex
    down into the open underside, and you press them to let the PC out. */
-ARM_W     = 12.0;        // arm width
-ARM_T     = 4.0;         // arm thickness - this is the spring
+ARM_W     = 16.0;        // arm width
+ARM_T     = 5.0;         // arm thickness - this is the spring
 ARM_X     = 14.0;        // how far out from the centre line each barb sits
 ARM_ANGLE = 40.0;        // sweep from the direction of travel; under 45 prints clean
 BARB_H    = 3.5;         // how far the barb stands above the pocket floor
 BARB_LEAD = 30.0;        // lead-in ramp: the PC's underside presses the arm down
-BARB_HOOK = 70.0;        // retaining face; 90 would be a dead stop
+BARB_HOOK = 90.0;        // retaining face: square, so nothing cams it out
 BARB_FLAT = 1.0;         // flat at the crest
 
 /* [Vents] Stretched honeycomb: hexagons with vertical flanks and pointed
@@ -75,7 +75,7 @@ VENT_LEN   = 26.0;       // cell length along the build direction
 VENT_ANGLE = 60.0;       // end slope from horizontal; >= 45 prints unsupported
 VENT_RIB   = 2.0;        // material left between cells
 TOP_VENT_BORDER  = 8.0;  // solid margin around the top-plate field
-SIDE_VENT_BORDER = 12.0; // solid margin at each end of a side wall
+SIDE_VENT_BORDER = 11.0; // solid margin at each end of a side wall
 SIDE_VENT_MARGIN = 4.0;  // solid wall left above and below the band
 
 PORT_W = 113.0;          // rear cable / port cutout
@@ -94,7 +94,7 @@ CAV_W = PC_W + 2 * GAP_SIDE;
 CAV_H = PC_H + GAP_TOP;
 OUT_W = CAV_W + 2 * WALL;
 OUT_D = BACK_T + PC_D + GAP_BACK + FRONT_LIP;
-OUT_H = TOP_T + CAV_H + SHELF_T;
+OUT_H = TOP_T + CAV_H + max(SHELF_T, ARM_T);   // the arms hang lowest
 
 X_OUT   = OUT_W / 2;             // outer face of the side walls
 X_CAV   = CAV_W / 2;             // inner face of the side walls
@@ -219,10 +219,13 @@ module arm() {
 }
 
 // Shallow ramp facing the mouth so the PC's underside presses the arm down on
-// the way in; steep face behind it so it will not come back out that way.
+// the way in; square face behind it so nothing cams the PC back out. The foot
+// sinks EPS into the arm rather than sitting exactly on its top plane - that
+// plane is rebuilt by (Z_FLOOR - ARM_T) + ARM_T, which is not always the same
+// float as Z_FLOOR, and a union of two solids that merely touch comes apart.
 module arm_barb() {
-    extrude_x([[PC_FRONT, Z_FLOOR], [BARB_Y1, Z_FLOOR + BARB_H],
-               [BARB_Y2, Z_FLOOR + BARB_H], [BARB_Y3, Z_FLOOR]],
+    extrude_x([[PC_FRONT, Z_FLOOR - EPS], [BARB_Y1, Z_FLOOR + BARB_H],
+               [BARB_Y2, Z_FLOOR + BARB_H], [BARB_Y3, Z_FLOOR - EPS]],
               ARM_X - ARM_W / 2, ARM_X + ARM_W / 2);
 }
 

@@ -85,7 +85,7 @@ def main():
     cav_h = pc_h + p["GAP_TOP"]
     out_w = cav_w + 2 * p["WALL"]
     out_d = p["BACK_T"] + pc_d + p["GAP_BACK"] + p["FRONT_LIP"]
-    out_h = p["TOP_T"] + cav_h + p["SHELF_T"]
+    out_h = p["TOP_T"] + cav_h + max(p["SHELF_T"], p["ARM_T"])
     total_w = out_w + 2 * p["EAR_L"]
     z_floor = -(p["TOP_T"] + cav_h)
     z_cav_top = -p["TOP_T"]
