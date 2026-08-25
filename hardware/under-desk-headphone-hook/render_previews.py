@@ -53,38 +53,28 @@ def render(ax, items, view, title):
 
 
 def main():
-    p = params("under_desk_airpods_holder.scad")
-    cav_t = p["CASE_T"] + p["GAP_TOP"]
-    out_d = p["BACK_T"] + p["CASE_D"] + p["GAP_BACK"] + p["FRONT_LIP"]
-    z_floor = -(p["TOP_T"] + cav_t)
+    p = params("under_desk_headphone_hook.scad")
+    r = p["THROAT"] / 2
+    bot = -p["DROP"] - r
 
-    printed = trimesh.load("airpods-holder.stl")
+    printed = trimesh.load("headphone-hook.stl")
     hung = printed.copy()
-    hung.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0]))
+    hung.apply_translation((0, 0, -p["WIDTH"] / 2))
+    hung.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2, [0, 1, 0]))
 
-    # The case, lying flat, ends taken as fully round.
-    r = p["CASE_T"] / 2
-    body = trimesh.creation.box(
-        extents=(p["CASE_W"] - 2 * r, p["CASE_D"], p["CASE_T"]),
-        transform=trimesh.transformations.translation_matrix(
-            (0, p["BACK_T"] + p["CASE_D"] / 2, z_floor + r)))
-    ends = []
-    for s in (-1, 1):
-        c = trimesh.creation.cylinder(radius=r, height=p["CASE_D"], sections=48)
-        c.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0]))
-        c.apply_translation((s * (p["CASE_W"] / 2 - r),
-                             p["BACK_T"] + p["CASE_D"] / 2, z_floor + r))
-        ends.append(c)
-    case = trimesh.boolean.union([body] + ends)
+    # A length of headband lying in the cradle.
+    band = trimesh.creation.cylinder(radius=14.0, height=p["WIDTH"] + 44, sections=64)
+    band.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
+    band.apply_translation((0, p["ARM_Y"] + r, bot + p["BAR"] / 2 + 14.25))
     desk = trimesh.creation.box(
-        extents=(150, 130, 16),
-        transform=trimesh.transformations.translation_matrix((0, 40, 8)))
+        extents=(150, 120, 16),
+        transform=trimesh.transformations.translation_matrix((0, 20, 8)))
 
     fig, axes = plt.subplots(1, 4, figsize=(20, 6), dpi=120)
-    render(axes[0], [(printed, BODY)], (-0.7, 0.8, -0.55), "as it prints, on its back")
-    render(axes[1], [(hung, BODY), (case, KB)], (-0.7, 0.85, -0.5), "case slid in")
-    render(axes[2], [(hung, BODY)], (-0.45, 0.8, 0.6), "from below - floor and thumb notch")
-    render(axes[3], [(desk, DESK), (hung, BODY), (case, KB)], (-0.55, 0.9, -0.12),
+    render(axes[0], [(printed, BODY)], (-0.7, 0.8, -0.55), "as it prints, on its side")
+    render(axes[1], [(hung, BODY)], (-0.75, 0.5, -0.35), "hanging")
+    render(axes[2], [(hung, BODY), (band, KB)], (-0.75, 0.5, -0.35), "headband in the cradle")
+    render(axes[3], [(desk, DESK), (hung, BODY), (band, KB)], (-0.6, 0.7, -0.2),
            "screwed under a desk top")
     fig.tight_layout()
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")

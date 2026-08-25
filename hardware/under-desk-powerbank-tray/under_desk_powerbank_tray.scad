@@ -3,7 +3,9 @@
 //
 // An open-front cradle that screws to the underside of a desk. The power bank
 // slides in horizontally from the front and is carried by two bottom shelves,
-// stopped at the back by the rear wall and held in by a pair of ramped nubs.
+// stopped at the back by the rear wall. Nothing latches it: it is a heavy brick
+// lying in a horizontal tray, so it goes in and out from the front and that is
+// the whole interaction.
 //
 // Everything below is derived from the parameter block, so a different power bank
 // is a three-number edit.
@@ -33,7 +35,7 @@ TOP_T     = 3.0;         // top plate, the face that meets the desk
 SHELF_T   = 4.0;         // bottom support lips
 SHELF_W   = 12.0;        // how far the lips reach in from each wall
 BACK_T    = 3.5;         // rear stop wall
-FRONT_LIP = 10.0;        // tray depth ahead of the PC, carries the barbs
+FRONT_LIP = 3.0;         // small margin ahead of the bank, for the chamfer
 
 /* [Mounting pads] Four tabs rather than full-length flanges: the same screw
    pattern for a third of the material. Uniform thickness on purpose - a
@@ -52,24 +54,6 @@ HEAD_D      = 9.5;       // countersink top diameter; set = SCREW_D to disable
 CSK_ANGLE   = 90.0;      // included angle
 SCREW_INSET = 30.0;      // from the back and front faces
 
-/* [Latches] Two sprung arms sweep in from the shelves to the middle of the
-   mouth and stand a barb up in front of the PC. They reach the middle on
-   purpose: a machine with rounded corners has no flat front face out at the
-   walls, so a barb there catches nothing. The arms are the spring, they flex
-   down into the open underside, and you press them to let the PC out. */
-ARM_W     = 12.0;        // arm width
-ARM_T     = 3.0;         // arm thickness - this is the spring
-ARM_X     = 14.0;        // how far out from the centre line each barb sits
-MAX_CORNER_R = 15.0;     // corner radius the barbs still land clear of. A power
-                         // bank is a much squarer brick than a Mac mini, so
-                         // this is generous; the check enforces it either way
-ARM_ANGLE = 30.0;        // sweep from the direction of travel; shallower than
-                         // the mini PC's, to buy back arm length on a narrower bay
-BARB_H    = 3.0;         // how far the barb stands above the pocket floor
-BARB_LEAD = 30.0;        // lead-in ramp: the PC's underside presses the arm down
-BARB_HOOK = 90.0;        // retaining face: square, so nothing cams it out
-BARB_FLAT = 1.0;         // flat at the crest
-
 /* [Vents] Stretched honeycomb: hexagons with vertical flanks and pointed
    ends, the points along the build direction. A cell closes at VENT_ANGLE
    instead of bridging flat across its width, so the grid needs no bridging
@@ -82,9 +66,6 @@ TOP_VENT_BORDER  = 8.0;  // solid margin around the top-plate field
 SIDE_VENT_BORDER = 11.0; // solid margin at each end of a side wall
 SIDE_VENT_MARGIN = 4.0;  // solid wall left above and below the band
 
-REAR_W = 60.0;           // rear vent / cable pass
-REAR_H = 34.0;
-REAR_R = 6.0;
 CHAMFER = 1.5;           // lead-in around the front opening
 
 /* [Output] */
@@ -98,7 +79,7 @@ CAV_W = BANK_W + 2 * GAP_SIDE;
 CAV_H = BANK_H + GAP_TOP;
 OUT_W = CAV_W + 2 * WALL;
 OUT_D = BACK_T + BANK_D + GAP_BACK + FRONT_LIP;
-OUT_H = TOP_T + CAV_H + max(SHELF_T, ARM_T);   // the arms hang lowest
+OUT_H = TOP_T + CAV_H + SHELF_T;
 
 X_OUT   = OUT_W / 2;             // outer face of the side walls
 X_CAV   = CAV_W / 2;             // inner face of the side walls
@@ -112,13 +93,7 @@ Z_BOT     = -OUT_H;              // lowest point of the part
 
 SCREW_YS = [SCREW_INSET, OUT_D - SCREW_INSET];   // add a value for a third pair
 
-BANK_FRONT  = BACK_T + BANK_D + GAP_BACK;            // front face, pushed forward
-BARB_Y1   = BANK_FRONT + BARB_H / tan(BARB_HOOK);  // crest, back edge
-BARB_Y2   = BARB_Y1 + BARB_FLAT;                 // crest, front edge
-BARB_Y3   = BARB_Y2 + BARB_H / tan(BARB_LEAD);   // foot of the lead-in ramp
-
-ARM_KNEE  = BANK_FRONT - 4;                        // where the sweep straightens
-ARM_ROOT  = ARM_KNEE - (X_OUT - ARM_X) / tan(ARM_ANGLE);   // buried in the wall
+BANK_FRONT = BACK_T + BANK_D + GAP_BACK;         // front face, pushed forward
 
 VENT_RISE = VENT_W / 2 * tan(VENT_ANGLE);        // height of one pointed end
 VENT_SIDE = VENT_LEN - 2 * VENT_RISE;            // length of the vertical flank
@@ -134,12 +109,7 @@ assert(SCREW_X - HEAD_D / 2 - DRIVER_CLR >= X_OUT,
        "the side wall crowds the screw heads; raise EAR_L");
 assert(VENT_ANGLE >= 45, "vent ends would need support");
 assert(VENT_SIDE > 0, "vent cells are too short for their angle; raise VENT_LEN");
-assert(BARB_Y3 <= OUT_D - CHAMFER, "the barb runs into the front chamfer");
-assert(ARM_X + ARM_W / 2 < X_SHELF, "the arms would foul the shelves");
-assert(ARM_X + ARM_W / 2 <= BANK_W / 2 - MAX_CORNER_R,
-       "the barbs reach into the corner radius; move them in");
-assert(ARM_ANGLE < 45, "the arm sweep would need support");
-assert(ARM_ROOT > BACK_T, "the arm root runs into the back wall; sweep it harder");
+assert(BANK_FRONT + CHAMFER <= OUT_D, "no room for the front chamfer");
 
 // --------------------------- helpers --------------------------------------
 
@@ -202,45 +172,12 @@ module ear(cy) {
     }
 }
 
-// One sprung arm in plan: swept in from the wall at ARM_ANGLE, then straight
-// for the last stretch, where the barb sits. The root is buried in the wall
-// and shelf, so the arm grows sideways out of supported material instead of
-// starting in mid air, and the sweep stays under 45 degrees the whole way.
-module arm_plan() {
-    adx = ARM_X - X_OUT;
-    ady = ARM_KNEE - ARM_ROOT;
-    alen = sqrt(adx * adx + ady * ady);
-    nx = ady / alen * ARM_W / 2;                 // normal to the sweep
-    ny = -adx / alen * ARM_W / 2;
-    polygon([[X_OUT + nx, ARM_ROOT + ny], [ARM_X + nx, ARM_KNEE + ny],
-             [ARM_X - nx, ARM_KNEE - ny], [X_OUT - nx, ARM_ROOT - ny]]);
-    translate([ARM_X - ARM_W / 2, ARM_KNEE - ARM_W])
-        square([ARM_W, OUT_D - ARM_KNEE + ARM_W]);
-}
-
-// The arm sits flush with the pocket floor, so it also carries the middle of
-// the PC, and hangs free underneath where it has room to flex.
-module arm() {
-    translate([0, 0, Z_FLOOR - ARM_T]) linear_extrude(height = ARM_T) arm_plan();
-}
-
-// Shallow ramp facing the mouth so the PC's underside presses the arm down on
-// the way in; square face behind it so nothing cams the PC back out. The foot
-// sinks EPS into the arm rather than sitting exactly on its top plane - that
-// plane is rebuilt by (Z_FLOOR - ARM_T) + ARM_T, which is not always the same
-// float as Z_FLOOR, and a union of two solids that merely touch comes apart.
-module arm_barb() {
-    extrude_x([[BANK_FRONT, Z_FLOOR - EPS], [BARB_Y1, Z_FLOOR + BARB_H],
-               [BARB_Y2, Z_FLOOR + BARB_H], [BARB_Y3, Z_FLOOR - EPS]],
-              ARM_X - ARM_W / 2, ARM_X + ARM_W / 2);
-}
-
 // --------------------------- the part --------------------------------------
 
 module body() {
     // Top plate: the face that beds against the desk.
     boxc(-X_OUT, X_OUT, 0, OUT_D, Z_CAV_TOP, 0);
-    // Rear stop wall.
+    // Rear wall: solid, it is the far end of the tray.
     boxc(-X_OUT, X_OUT, 0, BACK_T, Z_BOT, 0);
 
     for (m = [0, 1]) mirror([m, 0, 0]) {
@@ -250,9 +187,6 @@ module body() {
         boxc(X_SHELF, X_CAV, 0, OUT_D, Z_BOT, Z_FLOOR);
         // Mounting pads.
         for (cy = SCREW_YS) ear(cy);
-        // Sprung latch arm, reaching in to where the front face is flat.
-        arm();
-        arm_barb();
     }
 }
 
@@ -265,12 +199,6 @@ module cuts() {
             translate([sx, sy, -EAR_T - EPS])
                 cylinder(h = CSK_DEPTH + EPS, d1 = HEAD_D + 2 * EPS, d2 = SCREW_D);
     }
-
-    // Rear cable / port cutout.
-    translate([0, 0, (Z_CAV_TOP + Z_FLOOR) / 2]) hull()
-        for (cx = [-1, 1] * (REAR_W / 2 - REAR_R), cz = [-1, 1] * (REAR_H / 2 - REAR_R))
-            translate([cx, -EPS, cz]) rotate([-90, 0, 0])
-                cylinder(h = BACK_T + 2 * EPS, r = REAR_R);
 
     // Top-plate vents.
     translate([0, OUT_D / 2, Z_CAV_TOP - EPS])

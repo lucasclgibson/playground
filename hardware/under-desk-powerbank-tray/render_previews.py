@@ -72,20 +72,17 @@ def outline(ax, mesh, origin, normal, ij, colour, lw=1.4, label=None):
 def main():
     p = params("under_desk_powerbank_tray.scad")
     z_floor = -(p["TOP_T"] + p["BANK_H"] + p["GAP_TOP"])
+    x_cav = p["BANK_W"] / 2 + p["GAP_SIDE"]
+    out_d = p["BACK_T"] + p["BANK_D"] + p["GAP_BACK"] + p["FRONT_LIP"]
+
     mount = trimesh.load(STL)
     pc = trimesh.creation.box(
         extents=(p["BANK_W"], p["BANK_D"], p["BANK_H"]),
         transform=trimesh.transformations.translation_matrix(
             (0, p["BACK_T"] + p["BANK_D"] / 2, z_floor + p["BANK_H"] / 2)))
     desk = trimesh.creation.box(
-        extents=(230, 200, 18),
-        transform=trimesh.transformations.translation_matrix((0, 60, 9)))
-
-    z_floor = -(p["TOP_T"] + p["BANK_H"] + p["GAP_TOP"])
-    x_cav = p["BANK_W"] / 2 + p["GAP_SIDE"]
-    out_d = p["BACK_T"] + p["BANK_D"] + p["GAP_BACK"] + p["FRONT_LIP"]
-    pc_front = p["BACK_T"] + p["BANK_D"]
-    r_demo = 5.0                       # a power bank is a fairly square brick
+        extents=(230, 230, 18),
+        transform=trimesh.transformations.translation_matrix((0, 70, 9)))
 
     fig, axes = plt.subplots(2, 3, figsize=(19, 10), dpi=120)
     render(axes[0, 0], [(mount, BODY)], (-0.75, 0.85, -0.6),
@@ -93,51 +90,25 @@ def main():
     render(axes[0, 1], [(mount, BODY), (pc, PC)], (-0.75, 0.85, -0.6),
            "power bank seated")
     render(axes[0, 2], [(mount, BODY)], (-0.55, 0.8, 0.55),
-           "from below - shelves and the two sprung arms")
+           "from below - open bottom and shelves")
     render(axes[1, 0], [(desk, DESK), (mount, BODY), (pc, PC)], (-0.6, 0.9, -0.15),
            "screwed under a desk top")
+    render(axes[1, 1], [(mount, BODY), (pc, PC)], (0.75, -0.85, -0.5),
+           "from the back - closed off")
 
-    # Plan: where the barbs land against a machine with rounded corners.
-    ax = axes[1, 1]
-    outline(ax, mount, [0, 0, z_floor - p["ARM_T"] / 2], [0, 0, 1], (1, 0),
-            "#9aa7b8", lw=1.0, label="sprung arms")
-    outline(ax, mount, [0, 0, z_floor + p["BARB_H"] / 2], [0, 0, 1], (1, 0),
-            "#334", label="barbs and walls")
-    corner = plt.matplotlib.patches.FancyBboxPatch(
-        (p["BACK_T"] + r_demo, -p["BANK_W"] / 2 + r_demo),
-        p["BANK_D"] - 2 * r_demo, p["BANK_W"] - 2 * r_demo,
-        boxstyle=f"round,pad={r_demo}", fill=False, lw=1.6, color="#b4472e")
-    ax.add_patch(corner)
-    ax.annotate(f"power bank, {r_demo:.0f} mm corners",
-                (pc_front - 40, -p["BANK_W"] / 2 + 4),
-                color="#b4472e", fontsize=8, ha="center", va="bottom")
-    ax.annotate(f"barbs clear a\nradius up to {p['MAX_CORNER_R']:.0f} mm",
-                (pc_front - 8, p["BANK_W"] / 2 - 18),
-                color="#b4472e", fontsize=7.5, ha="right", va="center")
-    ax.annotate("barbs", (pc_front + 4, 0), color="#334", fontsize=8, ha="left",
-                va="center")
-    ax.set_xlim(out_d - 78, out_d + 4)
-    ax.set_ylim(-p["BANK_W"] / 2 - 10, p["BANK_W"] / 2 + 10)
-    ax.set_aspect("equal")
-    ax.legend(fontsize=8, loc="center left", frameon=False)
-    ax.set_title("plan - barbs reach the flat middle of the face", fontsize=10,
-                 color="#333")
-    ax.tick_params(labelsize=7)
-
-    # Elevation through one arm: the barb profile and the air it ducks into.
+    # Section across the tray: what carries the bank.
     ax = axes[1, 2]
-    outline(ax, mount, [p["ARM_X"], 0, 0], [1, 0, 0], (1, 2), "#334")
-    ax.axvline(pc_front, ls="--", lw=1.0, color="#b4472e")
-    ax.annotate("PC front face", (pc_front - 2, z_floor + 14), rotation=90,
-                fontsize=8, color="#b4472e", ha="right")
-    ax.annotate(f"ducks {p['BARB_H']:.1f} mm", (out_d - 8, z_floor - 10),
-                fontsize=8, color="#666", ha="center")
-    ax.arrow(out_d - 6, z_floor - p["ARM_T"] - 1, 0, -p["BARB_H"] + 1,
-             head_width=1.5, head_length=1.0, fc="#666", ec="#666", lw=0.8)
-    ax.set_xlim(out_d - 34, out_d + 4)
-    ax.set_ylim(z_floor - 12, z_floor + 10)
+    outline(ax, mount, [0, out_d / 2, 0], [0, 1, 0], (0, 2), "#334")
+    ax.add_patch(plt.Rectangle((-p["BANK_W"] / 2, z_floor), p["BANK_W"], p["BANK_H"],
+                               fill=False, ls="--", lw=1.2, color="#b4472e"))
+    ax.annotate("power bank", (0, z_floor + p["BANK_H"] / 2), color="#b4472e",
+                fontsize=8, ha="center", va="center")
+    ax.axhline(0, ls="-", lw=1.0, color="#c9a227")
+    ax.annotate("desk", (x_cav + 22, 1.5), fontsize=8, color="#666")
+    ax.set_xlim(-p["BANK_W"] / 2 - 30, p["BANK_W"] / 2 + 30)
+    ax.set_ylim(-p["TOP_T"] - p["BANK_H"] - p["GAP_TOP"] - p["SHELF_T"] - 6, 8)
     ax.set_aspect("equal")
-    ax.set_title("elevation through one arm", fontsize=10, color="#333")
+    ax.set_title("section at mid-depth", fontsize=10, color="#333")
     ax.tick_params(labelsize=7)
 
     fig.tight_layout()

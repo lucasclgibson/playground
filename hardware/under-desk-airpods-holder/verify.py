@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Check the exported holder: does the case go in, is the tongue actually free,
-can a driver reach the screw, does it print without support.
+Check the exported tray: does the case slide the whole way in, does it land on
+solid floor, can a driver reach the screws, does it print without support.
 
-The STL is exported ceiling-down the way it prints, so everything here is
-measured after turning it back over.
+The STL is exported on its back face the way it prints, so everything here is
+measured after standing it back up.
 """
 
 import math
@@ -34,20 +34,16 @@ def box(x0, x1, y0, y1, z0, z1):
             ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)))
 
 
-def rrect_prism(w, t, r, z0, z1):
-    """Rounded-rectangle prism - the case, or something case-shaped."""
-    parts = []
-    if w - 2 * r > TOL:                     # degenerate when r = w/2 or t/2
-        parts.append(box(-w / 2 + r, w / 2 - r, -t / 2, t / 2, z0, z1))
-    if t - 2 * r > TOL:
-        parts.append(box(-w / 2, w / 2, -t / 2 + r, t / 2 - r, z0, z1))
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            c = trimesh.creation.cylinder(
-                radius=r, height=z1 - z0, sections=64,
-                transform=trimesh.transformations.translation_matrix(
-                    (sx * (w / 2 - r), sy * (t / 2 - r), (z0 + z1) / 2)))
-            parts.append(c)
+def case_solid(w, t, d, y0, z0):
+    """The case lying flat: a stadium section w x t, swept d along y. The ends
+    are taken as fully round, which is the most material the case can have."""
+    r = t / 2
+    parts = [box(-w / 2 + r, w / 2 - r, y0, y0 + d, z0, z0 + t)]
+    for s in (-1, 1):
+        c = trimesh.creation.cylinder(radius=r, height=d, sections=64)
+        c.apply_transform(trimesh.transformations.rotation_matrix(math.pi / 2, [1, 0, 0]))
+        c.apply_translation((s * (w / 2 - r), y0 + d / 2, z0 + r))
+        parts.append(c)
     return trimesh.boolean.union(parts)
 
 
@@ -73,9 +69,13 @@ class Checks:
 
 def main():
     p = params(SCAD)
-    h = p["TOP_T"] + p["DEPTH"]
-    pock_w, pock_t = p["CASE_W"] + 2 * p["GAP"], p["CASE_T"] + 2 * p["GAP"]
-    z_ceil, z_mouth = -p["TOP_T"], -h
+    cav_w = p["CASE_W"] + 2 * p["GAP_SIDE"]
+    cav_t = p["CASE_T"] + p["GAP_TOP"]
+    out_w = cav_w + 2 * p["WALL"]
+    out_d = p["BACK_T"] + p["CASE_D"] + p["GAP_BACK"] + p["FRONT_LIP"]
+    out_h = p["TOP_T"] + cav_t + p["FLOOR_T"]
+    z_floor = -(p["TOP_T"] + cav_t)
+    screw_x = out_w / 2 + p["EAR_L"] / 2
     check = Checks()
 
     printed = trimesh.load(STL)
@@ -83,74 +83,75 @@ def main():
     check(printed.is_watertight and printed.body_count == 1
           and printed.is_winding_consistent, "one watertight solid")
     lo, hi = printed.bounds
-    check(abs(lo[2]) < TOL, "exported sitting on z = 0, ceiling down")
-    check(np.allclose(hi - lo, [pock_w + 2 * p["WALL"], pock_t + 2 * p["WALL"], h],
-                      atol=TOL),
+    check(abs(lo[2]) < TOL, "exported sitting on z = 0, on its back face")
+    check(np.allclose(hi - lo, [out_w + 2 * p["EAR_L"], out_h, out_d], atol=TOL),
           f"{hi[0] - lo[0]:.1f} x {hi[1] - lo[1]:.1f} x {hi[2] - lo[2]:.1f} mm")
 
-    m = printed.copy()                       # back the way it hangs
-    m.apply_transform(trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]))
+    m = printed.copy()                        # stand it back up
+    m.apply_transform(trimesh.transformations.rotation_matrix(-math.pi / 2, [1, 0, 0]))
 
-    print("fit")
-    # The case, at the squarest it can be and still be expected to fit: corners
-    # exactly the pocket radius less the clearance. If this goes in, a rounder
-    # one does too.
-    worst_r = p["POCKET_R"] - p["GAP"]
-    for label, r in ((f"squarest case it claims ({worst_r:.1f} mm corners)", worst_r),
-                     (f"fully rounded ends ({p['CASE_T'] / 2:.2f} mm)", p["CASE_T"] / 2)):
-        case = rrect_prism(p["CASE_W"], p["CASE_T"], r, z_ceil - p["CASE_H"], z_ceil)
-        hit = overlap(m, case)
-        # the bump is meant to be in the way; measure with it pressed flat
-        bumpless = overlap(m, trimesh.boolean.difference(
-            [case, box(-p["TONGUE_W"] / 2 - 1, p["TONGUE_W"] / 2 + 1,
-                       pock_t / 2 - p["BUMP"] - 0.05, pock_t / 2 + 5,
-                       z_mouth - 1, z_ceil + 1)]))
-        check(bumpless < V_TOL, f"pocket takes the {label}",
-              f"{bumpless:.3f} mm^3 outside the bump")
-    check(overlap(m, rrect_prism(p["CASE_W"], p["CASE_T"], p["CASE_T"] / 2,
-                                 z_ceil - p["CASE_H"], z_ceil)) > V_TOL,
-          "the bump does bear on the case", "it is the grip")
-
-    print("grip")
-    slot = 0.0
-    for s in (-1.0, 1.0):
-        slot += overlap(m, box(s * (p["TONGUE_W"] / 2 + 0.05),
-                               s * (p["TONGUE_W"] / 2 + p["SLOT"] - 0.05),
-                               pock_t / 2 + 0.05, pock_t / 2 + p["WALL"] - 0.05,
-                               z_mouth + 0.05, z_mouth + p["TONGUE_L"] - 0.05))
-    check(slot < V_TOL, "the tongue is cut free either side",
-          f"{slot:.3f} mm^3 bridging a slot")
-    crest = trimesh.boolean.intersection(
-        [m, box(-p["TONGUE_W"] / 2, p["TONGUE_W"] / 2, 0, pock_t,
-                z_mouth + p["BUMP_Z"] - 0.4, z_mouth + p["BUMP_Z"] + 0.4)])
-    stands = pock_t / 2 - crest.bounds[0][1] if len(crest.faces) else 0.0
-    check(abs(stands - p["BUMP"]) < 0.05,
-          f"bump stands {p['BUMP']:.1f} mm into the pocket",
-          f"measured {stands:.2f} mm")
-
-    print("fastener")
-    def cyl(r, z0, z1):
-        return trimesh.creation.cylinder(
-            radius=r, height=z1 - z0, sections=64,
-            transform=trimesh.transformations.translation_matrix((0, 0, (z0 + z1) / 2)))
-    check(overlap(m, cyl(p["SCREW_D"] / 2 - 0.05, z_ceil, 0.0)) < V_TOL,
-          "screw hole bored through the ceiling")
-    check(overlap(m, cyl(p["HEAD_D"] / 2 + 1.0, z_ceil, 0.0)) > V_TOL,
-          "ceiling is solid around it")
-    check(overlap(m, cyl(p["HEAD_D"] / 2 + 1.5, z_mouth - 30, z_ceil)) < V_TOL,
-          "driver reaches it through the open mouth",
-          "screw it up before the case goes in")
+    print("slide")
+    # Swept from seated all the way out of the mouth, at rest height.
+    sweep = trimesh.boolean.union(
+        [case_solid(p["CASE_W"], p["CASE_T"], p["CASE_D"] + out_d,
+                    p["BACK_T"], z_floor + 0.02)])
+    blocked = overlap(m, sweep)
+    check(blocked < V_TOL, "slides the whole way in and out, nothing in the path",
+          f"{blocked:.3f} mm^3 of obstruction")
+    check(cav_t - p["CASE_T"] > 0, "clearance over the case",
+          f"{cav_t - p['CASE_T']:.1f} mm to the desk")
+    back = overlap(m, box(-p["CASE_W"] / 2, p["CASE_W"] / 2, -20.0, p["BACK_T"] - 0.05,
+                          z_floor + 0.02, z_floor + 0.02 + p["CASE_T"]))
+    check(back > V_TOL, "the far end is closed off", f"{back:.0f} mm^3 of back wall")
 
     print("support")
+    # The case's face is only flat across its middle, so the floor has to be
+    # solid under that - not a pair of shelves out at the edges.
+    flat = p["CASE_W"] - 2 * (p["CASE_T"] / 2)
+    floor = overlap(m, box(-flat / 2, flat / 2, out_d / 2 - 5, out_d / 2 + 5,
+                           z_floor - 0.1, z_floor)) / 0.1 / 10
+    check(abs(floor - flat) < 0.2,
+          f"floor is solid under the case's flat {flat:.1f} mm middle",
+          f"measured {floor:.1f} mm")
+    notch = overlap(m, box(-p["NOTCH_R"] + 2, p["NOTCH_R"] - 2, out_d - 4, out_d,
+                           z_floor - p["FLOOR_T"], z_floor))
+    check(notch < V_TOL, "thumb notch is open at the mouth",
+          f"{notch:.1f} mm^3 of floor left in it")
+
+    print("fasteners")
+    def cyl(x, r, z0, z1):
+        return trimesh.creation.cylinder(
+            radius=r, height=z1 - z0, sections=64,
+            transform=trimesh.transformations.translation_matrix(
+                (x, out_d / 2, (z0 + z1) / 2)))
+    clear = solid = fouled = 0.0
+    for sx in (-screw_x, screw_x):
+        clear += overlap(m, cyl(sx, p["SCREW_D"] / 2 - 0.05, -p["EAR_T"], 0.0))
+        solid += overlap(m, cyl(sx, p["HEAD_D"] / 2 + 1.0, -p["EAR_T"], 0.0))
+        fouled += overlap(m, cyl(sx, p["HEAD_D"] / 2 + p["DRIVER_CLR"],
+                                 -out_h - 25, -p["EAR_T"]))
+    check(clear < V_TOL, "2 screw holes bored through", f"{clear:.3f} mm^3")
+    check(solid > V_TOL, "pads solid around them", f"{solid:.0f} mm^3")
+    check(fouled < V_TOL, "driver reaches both heads", f"{fouled:.1f} mm^3 in the way")
+
+    print("print")
+    # Everything is walls running along the build direction. The only thing
+    # left facing down is the top of each screw bore, which is a 5 mm hole
+    # printed on its side - routine.
     n = printed.face_normals
     steep = n[:, 2] < -np.cos(np.radians(44.0))
     on_bed = (printed.triangles[:, :, 2] < TOL).all(axis=1)
     flagged = steep & ~on_bed & (printed.area_faces > 0.01)
-    check(not flagged.any(), "nothing in the part overhangs at all",
-          f"{flagged.sum()} faces steeper than 45 degrees")
+    stray = 0
+    if flagged.any():
+        cx = printed.triangles[flagged][:, :, 0].mean(axis=1)
+        stray = int((np.abs(np.abs(cx) - screw_x) > p["HEAD_D"]).sum())
+    check(stray == 0, "the screw bores are the only overhang in the part",
+          f"{printed.area_faces[flagged].sum():.0f} mm^2 total, "
+          f"{stray} faces anywhere else")
 
-    print(f"\n{printed.volume / 1000:.1f} cm3, ~{printed.volume / 1000 * 1.24 * 0.6:.0f} g "
-          f"as printed; the case stands {p['CASE_H'] - p['DEPTH']:.0f} mm proud to grab")
+    print(f"\n{printed.volume / 1000:.1f} cm3, ~{printed.volume / 1000 * 1.24 * 0.5:.0f} g "
+          f"as printed; screw centres {2 * screw_x:.1f} mm apart")
     print("FAILED" if check.failed else "all checks passed")
     return 1 if check.failed else 0
 

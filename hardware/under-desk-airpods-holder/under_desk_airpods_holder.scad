@@ -1,135 +1,135 @@
 // ---------------------------------------------------------------------------
-// Under-desk AirPods Pro case holder
+// Under-desk AirPods Pro case tray
 //
-// A socket that screws to the underside of a desk. Push the case up into it,
-// pull it down to take it out. One screw, straight up through the ceiling of
-// the socket - you drive it through the open mouth before the case goes in, so
-// there is no flange hanging off the side.
+// A shallow open-front tray that screws to the underside of a desk. The case
+// lies flat, big face to the desk, and slides in and out from the front. A
+// thumb notch in the floor at the mouth lets you push it back out.
 //
-// Apple publishes the case as 45.2 x 60.6 x 21.7 mm but not its radii. The
-// ends look semicircular, which for a 21.7 mm depth means r = 10.85 - the most
-// rounded that bounding box can be. A pocket cut to that only fits if the case
-// really is a perfect stadium; anything squarer is wider at the corners and
-// jams. So the pocket is cut to 8 mm: smaller than any plausible case radius,
-// which means it takes the case either way, and the slack at the corners is
-// invisible once it is in.
+// Lying flat is what makes this simple. Stood on end the case would have to be
+// held up against gravity, which needs a snap, and a shallow socket has no
+// wall length to spring with. Flat, the floor does the work and there is
+// nothing to latch.
 //
-//   x = case width,  y = case thickness,  z = height, 0 = desk underside
+// Apple publishes the case as 45.2 x 60.6 x 21.7 mm but not its radii. Lying
+// flat that hardly matters - a square pocket takes the case whatever its
+// corners do, and the only place it shows is that the case rests on the flat
+// middle of its face rather than right out at the edges, which is why the
+// floor is solid rather than a pair of shelves.
 //
-// Render:  openscad -o holder.stl under_desk_airpods_holder.scad
+//   x = case width, y = depth front to back, z = height, 0 = desk underside
+//
+// Render:  openscad -o tray.stl under_desk_airpods_holder.scad
 // ---------------------------------------------------------------------------
 
-/* [Case] Apple AirPods Pro 2 charging case */
-CASE_W = 60.6;
-CASE_T = 21.7;
-CASE_H = 45.2;
+/* [Case] Apple AirPods Pro 2 charging case, lying flat */
+CASE_W = 60.6;           // left-right
+CASE_D = 45.2;           // front-back once it is lying down
+CASE_T = 21.7;           // thickness, which is now the depth of the tray
 
 /* [Fit] */
-GAP      = 0.6;          // clearance around the case, per side
-POCKET_R = 8.0;          // pocket corner radius - deliberately under the case's
-DEPTH    = 30.0;         // how much of the case the socket swallows
+GAP_SIDE = 0.6;
+GAP_TOP  = 0.8;
+GAP_BACK = 1.0;
 
-/* [Shell] */
-WALL  = 2.5;
-TOP_T = 5.0;             // ceiling, thick enough to countersink into
+/* [Tray] */
+WALL      = 2.5;
+TOP_T     = 3.0;         // the face that beds against the desk
+FLOOR_T   = 2.5;         // solid: the case's face is only flat in the middle
+BACK_T    = 2.5;
+FRONT_LIP = 2.0;
+NOTCH_R   = 12.0;        // thumb notch in the floor, to push the case back out
+CHAMFER   = 1.2;         // lead-in around the mouth
 
-/* [Grip] A sprung tongue in the front wall, so the hold does not depend on
-   hitting a friction fit dead on. */
-TONGUE_W = 14.0;
-TONGUE_L = 28.0;         // from the mouth back towards the ceiling
-SLOT     = 1.6;          // gap freeing it either side
-BUMP     = 1.2;          // how far it stands into the pocket
-BUMP_RAMP = 30.0;        // both faces, so it prints and releases either way
-BUMP_FLAT = 2.0;
-BUMP_Z    = 8.0;         // crest, measured up from the mouth
+/* [Mounting pads] Two, one per side, full depth. Outboard so a driver can get
+   at the screws from below without reaching into the tray. */
+EAR_L = 13.0;
+EAR_T = 5.0;
 
-/* [Fastener] One #8 or M4 flat-head wood screw */
-SCREW_D   = 5.0;
-HEAD_D    = 9.5;
-CSK_ANGLE = 90.0;
+/* [Fasteners] Two #8 or M4 flat-head wood screws */
+SCREW_D    = 5.0;
+HEAD_D     = 9.5;
+CSK_ANGLE  = 90.0;
+DRIVER_CLR = 1.5;
 
 /* [Output] */
-PRINT_ORIENTATION = true;    // ceiling down, which is how it prints
+PRINT_ORIENTATION = true;    // laid on its back face, which is how it prints
 SHOW_CASE = false;
-$fn = 64;
+$fn = 48;
 
 // --------------------------- derived --------------------------------------
 
-POCK_W = CASE_W + 2 * GAP;
-POCK_T = CASE_T + 2 * GAP;
-H      = TOP_T + DEPTH;          // total drop below the desk
-Z_CEIL = -TOP_T;                 // underside of the ceiling
-Z_MOUTH = -H;
+CAV_W = CASE_W + 2 * GAP_SIDE;
+CAV_T = CASE_T + GAP_TOP;
+OUT_W = CAV_W + 2 * WALL;
+OUT_D = BACK_T + CASE_D + GAP_BACK + FRONT_LIP;
+OUT_H = TOP_T + CAV_T + FLOOR_T;
+
+X_CAV = CAV_W / 2;
+X_OUT = OUT_W / 2;
+X_EAR = X_OUT + EAR_L;
+SCREW_X = X_OUT + EAR_L / 2;
+SCREW_Y = OUT_D / 2;
+
+Z_FLOOR = -(TOP_T + CAV_T);      // floor's top face = where the case rests
+Z_BOT   = -OUT_H;
 CSK_DEPTH = (HEAD_D - SCREW_D) / 2 / tan(CSK_ANGLE / 2);
-BUMP_RUN = BUMP / tan(BUMP_RAMP);
 EPS = 0.01;
 
-assert(POCKET_R < POCK_T / 2, "pocket radius is larger than the pocket is deep");
-assert(POCKET_R <= CASE_T / 2 - 1.0,
-       "pocket radius leaves no margin against the case's own radius");
-assert(TOP_T > CSK_DEPTH + 1.5, "too little ceiling left under the countersink");
-assert(HEAD_D + 4 < POCK_T, "screw head does not fit inside the socket");
-assert(TONGUE_L < DEPTH, "the tongue slot would cut into the ceiling");
-assert(BUMP_Z + BUMP_RUN + BUMP_FLAT / 2 < TONGUE_L, "the bump is past the tongue");
+assert(EAR_T > CSK_DEPTH + 1.5, "too little pad left under the countersink");
+assert(SCREW_X - HEAD_D / 2 - DRIVER_CLR >= X_OUT,
+       "the side wall crowds the screw heads; raise EAR_L");
+assert(SCREW_X + HEAD_D / 2 < X_EAR, "the screw head overhangs the pad");
+assert(NOTCH_R < X_CAV, "the thumb notch is wider than the tray");
+assert(CHAMFER < WALL, "the lead-in chamfer eats the whole wall");
 
 // --------------------------- helpers --------------------------------------
 
-// Rounded rectangle, centred.
-module rrect(w, t, r) {
-    offset(r = r) square([w - 2 * r, t - 2 * r], center = true);
-}
-
-// Convex (y,z) profile swept along x.
-module extrude_x(profile, x0, x1) {
-    translate([x0, 0, 0]) rotate([0, 90, 0]) rotate([0, 0, 90])
-        linear_extrude(height = x1 - x0) polygon(profile);
+module boxc(x0, x1, y0, y1, z0, z1) {
+    translate([x0, y0, z0]) cube([x1 - x0, y1 - y0, z1 - z0]);
 }
 
 // --------------------------- the part --------------------------------------
 
-module holder() {
+module tray() {
     difference() {
-        // Shell: the pocket grown by the wall thickness, which rounds the
-        // outside to match.
-        translate([0, 0, -H]) linear_extrude(height = H)
-            offset(r = WALL) rrect(POCK_W, POCK_T, POCKET_R);
+        union() {
+            boxc(-X_OUT, X_OUT, 0, OUT_D, Z_FLOOR - FLOOR_T, Z_FLOOR);  // floor
+            boxc(-X_OUT, X_OUT, 0, OUT_D, -TOP_T, 0);                   // top plate
+            boxc(-X_OUT, X_OUT, 0, BACK_T, Z_BOT, 0);                   // back wall
+            for (m = [0, 1]) mirror([m, 0, 0]) {
+                boxc(X_CAV, X_OUT, 0, OUT_D, Z_BOT, 0);                 // side wall
+                boxc(X_OUT, X_EAR, 0, OUT_D, -EAR_T, 0);                // mounting pad
+            }
+        }
 
-        // The pocket, open at the bottom.
-        translate([0, 0, -H - 1]) linear_extrude(height = H - TOP_T + 1)
-            rrect(POCK_W, POCK_T, POCKET_R);
+        // Screws, countersunk from below.
+        for (sx = [-SCREW_X, SCREW_X]) {
+            translate([sx, SCREW_Y, -EAR_T - EPS])
+                cylinder(h = EAR_T + 2 * EPS, d = SCREW_D);
+            translate([sx, SCREW_Y, -EAR_T - EPS])
+                cylinder(h = CSK_DEPTH + EPS, d1 = HEAD_D + 2 * EPS, d2 = SCREW_D);
+        }
 
-        // Screw, countersunk into the ceiling from inside the socket. Printed
-        // ceiling-down this cone opens upward, so it needs no support.
-        translate([0, 0, Z_CEIL - EPS]) cylinder(h = TOP_T + 2 * EPS, d = SCREW_D);
-        translate([0, 0, Z_CEIL - EPS])
-            cylinder(h = CSK_DEPTH + EPS, d1 = HEAD_D + 2 * EPS, d2 = SCREW_D);
+        // Thumb notch: a bite out of the floor at the mouth, so you can put a
+        // finger on the case's underside and push it out.
+        translate([0, OUT_D, Z_FLOOR - FLOOR_T - EPS])
+            cylinder(h = FLOOR_T + 2 * EPS, r = NOTCH_R);
 
-        // Slots freeing the tongue. They run out of the mouth, so they open at
-        // the top of the print rather than closing over a bridge.
-        for (s = [-1, 1])
-            translate([s * (TONGUE_W + SLOT) / 2 - SLOT / 2, POCK_T / 2 - EPS,
-                       Z_MOUTH - EPS])
-                cube([SLOT, WALL + 2 * EPS, TONGUE_L + EPS]);
+        // Lead-in chamfer around the mouth.
+        hull() {
+            boxc(-X_CAV, X_CAV, OUT_D - CHAMFER, OUT_D - CHAMFER + EPS,
+                 Z_FLOOR, -TOP_T);
+            boxc(-X_CAV - CHAMFER - 1, X_CAV + CHAMFER + 1, OUT_D + 1 - EPS, OUT_D + 1,
+                 Z_FLOOR - CHAMFER - 1, -TOP_T + CHAMFER + 1);
+        }
     }
-
-    // The bump, on the inside of the tongue. Symmetric ramps: the lower one
-    // lets the case in, the upper one is what the print has to hold up, and at
-    // 30 degrees off the wall neither needs support.
-    // (y, z) profile. The base sits EPS inside the wall rather than exactly on
-    // its face: two solids that merely touch do not always come out of a union
-    // as one body.
-    extrude_x([[POCK_T / 2 + EPS, Z_MOUTH + BUMP_Z - BUMP_RUN - BUMP_FLAT / 2],
-               [POCK_T / 2 - BUMP, Z_MOUTH + BUMP_Z - BUMP_FLAT / 2],
-               [POCK_T / 2 - BUMP, Z_MOUTH + BUMP_Z + BUMP_FLAT / 2],
-               [POCK_T / 2 + EPS, Z_MOUTH + BUMP_Z + BUMP_RUN + BUMP_FLAT / 2]],
-              -TONGUE_W / 2, TONGUE_W / 2);
 }
 
-// Printed ceiling-down: the desk face is the first layer, the walls rise, the
-// mouth is the open top, and the countersink opens upward. Nothing overhangs.
-if (PRINT_ORIENTATION) rotate([180, 0, 0]) holder();
-else holder();
-
-if (SHOW_CASE && !PRINT_ORIENTATION)
-    %translate([0, 0, Z_CEIL - CASE_H])
-        linear_extrude(height = CASE_H) rrect(CASE_W, CASE_T, CASE_T / 2);
+// Printed on its back face: the walls, floor and top plate all run along the
+// build direction, so nothing overhangs but the countersinks.
+if (PRINT_ORIENTATION) rotate([90, 0, 0]) tray();
+else {
+    tray();
+    if (SHOW_CASE)
+        %translate([-CASE_W / 2, BACK_T, Z_FLOOR]) cube([CASE_W, CASE_D, CASE_T]);
+}

@@ -1,67 +1,53 @@
-# Under-desk AirPods Pro case holder
+# Under-desk AirPods Pro case tray
 
-A socket that screws to the underside of a desk. Push the case up into it, pull
-it down to take it out. One screw, straight up through the ceiling of the
-socket - you drive it through the open mouth before the case goes in, so there
-is no flange hanging off the side.
+A shallow open-front tray that screws to the underside of a desk. The case lies
+flat, big face to the desk, and slides in and out from the front. A thumb notch
+in the floor lets you push it back out.
 
 ![preview](preview.png)
-
-## The case, and what is knowable about it
-
-Apple publishes the AirPods Pro 2 charging case as **45.2 x 60.6 x 21.7 mm**,
-50.8 g. It does not publish the radii, and neither does anyone else - the
-dimension drawings that exist give the bounding box and nothing more.
-
-The ends look semicircular, which for a 21.7 mm depth would mean r = 10.85 -
-the most rounded that bounding box can possibly be. That is exactly why the
-pocket is **not** cut to it. A pocket at 10.85 fits only if the case really is
-a perfect stadium; a case even slightly squarer is wider at its corners and
-jams. Cutting the pocket smaller is the safe direction:
-
-| pocket radius | fits a case whose corners are at least |
-| --- | --- |
-| 11.45 (stadium) | 10.85 mm - only a perfect stadium |
-| 10.0 | 9.40 mm |
-| **8.0 (used)** | **7.40 mm** |
-
-At 8 mm the case drops in whether its ends are semicircular or noticeably
-squarer, and the extra room at the corners is invisible once it is in.
 
 ## Dimensions
 
 | | mm |
 | --- | --- |
-| Overall | 66.8 x 27.9 x 35 |
-| Pocket | 61.8 x 22.9, 30 deep, 8 mm corners |
-| Drop below the desk | 35 |
-| Case left proud to grab | 15 |
-| Material | 21 cm3 (~15 g) |
+| Overall, including mounting pads | 92.8 x 50.7 x 28 |
+| Pocket | 61.8 wide x 46.2 deep x 22.5 |
+| Drop below the desk | 28 |
+| Screw centres | 79.8 apart |
+| Material | 33 cm3 (~21 g) |
 
-## How it holds
+Clearance is 0.6 mm each side, 0.8 mm above and 1 mm front-to-back.
 
-- **Socket** - swallows the top 30 mm of the case with 0.6 mm of clearance all
-  round, so it cannot swing or rattle.
-- **Sprung tongue** - a 14 mm tongue cut into the front wall carries a 1.2 mm
-  bump that presses the case against the back of the pocket. That is the whole
-  grip: about 6 N of push, so roughly 2.4 N of friction against a case that
-  weighs 0.5 N - five times its weight. A plain friction fit would need the
-  print to land on tolerance; a sprung one does not care, and if the print
-  comes out a few tenths loose the bump simply sits further out.
-- **One screw** - a #8 or M4 flat head, countersunk flush into the ceiling from
-  inside. It sits directly over the case, so pushing the case in pushes
-  straight through the screw and there is nothing to twist the holder round.
+## The case, and what is knowable about it
+
+Apple publishes the AirPods Pro 2 charging case as **45.2 x 60.6 x 21.7 mm**,
+50.8 g. It does not publish the radii, and neither does anyone else.
+
+Lying flat, that barely matters - a square pocket takes the case whatever its
+corners do. It shows up in exactly one place. The case's cross-section is a
+stadium: 60.6 wide, 21.7 thick, ends fully rounded. So the face it lies on is
+only flat across its middle **38.9 mm** - the rest curves away. That is why the
+tray has a **solid floor** rather than a pair of shelves at the edges: shelves
+would meet the case on the curve, on two lines, and let it rock. The check
+measures that the floor really is solid under that 38.9 mm.
+
+## Why flat rather than on end
+
+Stood on end the case has to be held up against gravity, which needs a snap,
+and a socket that shallow has no wall length to spring with - a 14 mm wall is
+some 30 N/mm, so a 1 mm catch would take more force to fit than the case can
+survive. Lying flat, the floor does the work and there is nothing to latch.
 
 ## Printing
 
-Print `airpods-holder.stl` as it comes - it is exported ceiling-down, which is
-how it prints. **Nothing in the part overhangs at all**: the desk face is the
-first layer, the walls rise from it, the mouth is the open top, and the
-countersink is a cone that opens upward.
+Print `airpods-holder.stl` as it comes - it is exported on its back face, which
+is how it prints. Everything is walls running along the build direction; the
+only thing left facing down is the top of each screw bore, a 5 mm hole printed
+on its side. 22 mm2 of the part, and nothing anywhere else.
 
 | | |
 | --- | --- |
-| Bed footprint | 66.8 x 27.9 mm, 35 mm tall |
+| Bed footprint | 92.8 x 28 mm, 50.7 mm tall |
 | Supports | none |
 | Material | PLA or PETG |
 | Layer height | 0.2 mm |
@@ -70,14 +56,10 @@ countersink is a cone that opens upward.
 
 ## Mounting
 
-One **#8 or M4 flat-head wood screw**, 20-25 mm.
-
-1. Hold the holder against the desk, mark through the hole, pilot drill 2.5-3 mm.
-2. Drive the screw through the ceiling from inside the socket - a driver goes
-   in through the open mouth easily.
-3. Push the case up until the tongue clicks over it.
-
-Pick a screw no longer than `5 mm + desk thickness - 3 mm`.
+Two **#8 or M4 flat-head wood screws** on a 79.8 mm pattern, countersunk flush
+into the side pads. Pilot 2.5-3 mm; screws no longer than
+`5 mm + desk thickness - 3 mm`. The pads are outboard so a driver reaches the
+screws from below without going into the tray.
 
 ## Files
 
@@ -91,27 +73,21 @@ Pick a screw no longer than `5 mm + desk thickness - 3 mm`.
 
 ## Changing it
 
-Edit the parameter block and run `./build.sh`. `GAP` is the clearance, `BUMP`
-the grip, `DEPTH` how much of the case is swallowed. `POCKET_R` is the one to
-leave alone unless you have measured your own case's corners - the check
-`pocket takes the squarest case it claims` tests a case cut to exactly
-`POCKET_R - GAP`, so raising the radius quietly narrows what fits.
+Edit the parameter block and run `./build.sh`.
 
 ```
-mesh        one watertight solid, on z = 0 ceiling down, 66.8 x 27.9 x 35.0 mm
-fit         takes the squarest case it claims and a fully rounded one
-grip        tongue cut free either side, bump stands 1.2 mm into the pocket
-fastener    hole bored through, ceiling solid around it, driver reaches it
-support     nothing in the part overhangs at all
+mesh        one watertight solid, on z = 0 on its back, 92.8 x 28.0 x 50.7 mm
+slide       slides the whole way in and out, 0.8 mm clear, far end closed
+support     floor solid under the case's flat 38.9 mm middle, notch open
+fasteners   2 holes bored through, pads solid, driver reaches both heads
+print       the screw bores are the only overhang
 ```
 
 ## Notes and limits
 
-- Sized for the **2nd gen / USB-C** case. The 1st gen Pro case is 45.2 x 60.6 x
-  21.7 as well, so it fits; the standard AirPods case is a different shape and
-  will not.
-- With a case in a silicone skin, add the skin's thickness to `GAP` - or just
-  print it with `GAP = 1.2` and accept a looser hold on the bare case.
-- The case hangs mouth-down, so its own lid faces the desk. Nothing falls out
-  of it, but the USB-C port ends up at the exposed bottom, which is the right
-  way round for charging it in place.
+- Sized for the **2nd gen / USB-C** case. The 1st gen Pro case is the same
+  size. The standard AirPods case is a different shape and will not fit.
+- With the case in a silicone skin, add the skin's thickness to `GAP_SIDE` and
+  `GAP_TOP`.
+- Nothing latches it. The tray is horizontal, so gravity is not trying to pull
+  the case out - only a knock from the front would, and the case is 50 g.
