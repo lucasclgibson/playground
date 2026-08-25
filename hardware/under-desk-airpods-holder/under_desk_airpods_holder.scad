@@ -27,9 +27,9 @@ CASE_D = 45.2;           // front-back once it is lying down
 CASE_T = 21.7;           // thickness, which is now the depth of the tray
 
 /* [Fit] */
-GAP_SIDE = 0.6;
-GAP_TOP  = 0.8;
-GAP_BACK = 1.0;
+GAP_SIDE = 0.4;          // snug: the case is a known size, so this can be tight
+GAP_TOP  = 0.5;
+GAP_BACK = 0.6;
 
 /* [Tray] */
 WALL      = 2.5;
@@ -37,7 +37,10 @@ TOP_T     = 3.0;         // the face that beds against the desk
 FLOOR_T   = 2.5;         // solid: the case's face is only flat in the middle
 BACK_T    = 2.5;
 FRONT_LIP = 2.0;
-NOTCH_R   = 12.0;        // thumb notch in the floor, to push the case back out
+NOTCH_W   = 24.0;        // thumb slot in the floor. Wide enough for a thumb, and
+NOTCH_L   = 34.0;        // long enough to run it back behind the case and drag
+                         // the case out. It costs floor: what is left either
+                         // side of it is what the case actually rests on.
 CHAMFER   = 1.2;         // lead-in around the mouth
 
 /* [Mounting pads] Two, one per side, full depth. Outboard so a driver can get
@@ -79,7 +82,10 @@ assert(EAR_T > CSK_DEPTH + 1.5, "too little pad left under the countersink");
 assert(SCREW_X - HEAD_D / 2 - DRIVER_CLR >= X_OUT,
        "the side wall crowds the screw heads; raise EAR_L");
 assert(SCREW_X + HEAD_D / 2 < X_EAR, "the screw head overhangs the pad");
-assert(NOTCH_R < X_CAV, "the thumb notch is wider than the tray");
+assert(NOTCH_W + 8 < CAV_W, "the thumb slot is wider than the tray");
+assert((CASE_W - CASE_T - NOTCH_W) / 2 >= 4,
+       "the slot leaves too little flat floor either side to rest the case on");
+assert(NOTCH_L < CASE_D, "the slot runs past the back of the case");
 assert(CHAMFER < WALL, "the lead-in chamfer eats the whole wall");
 
 // --------------------------- helpers --------------------------------------
@@ -110,10 +116,13 @@ module tray() {
                 cylinder(h = CSK_DEPTH + EPS, d1 = HEAD_D + 2 * EPS, d2 = SCREW_D);
         }
 
-        // Thumb notch: a bite out of the floor at the mouth, so you can put a
-        // finger on the case's underside and push it out.
-        translate([0, OUT_D, Z_FLOOR - FLOOR_T - EPS])
-            cylinder(h = FLOOR_T + 2 * EPS, r = NOTCH_R);
+        // Thumb slot: a channel up the middle of the floor, open at the mouth,
+        // so a thumb can run back along the case's underside and drag it out.
+        // It opens towards the mouth and never closes again, so printed on its
+        // back face there is nothing to bridge.
+        hull() for (y = [OUT_D - NOTCH_L + NOTCH_W / 2, OUT_D + 1])
+            translate([0, y, Z_FLOOR - FLOOR_T - EPS])
+                cylinder(h = FLOOR_T + 2 * EPS, d = NOTCH_W);
 
         // Lead-in chamfer around the mouth.
         hull() {

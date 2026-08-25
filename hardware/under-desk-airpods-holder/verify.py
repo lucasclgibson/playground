@@ -105,18 +105,36 @@ def main():
     check(back > V_TOL, "the far end is closed off", f"{back:.0f} mm^3 of back wall")
 
     print("support")
-    # The case's face is only flat across its middle, so the floor has to be
-    # solid under that - not a pair of shelves out at the edges.
-    flat = p["CASE_W"] - 2 * (p["CASE_T"] / 2)
-    floor = overlap(m, box(-flat / 2, flat / 2, out_d / 2 - 5, out_d / 2 + 5,
-                           z_floor - 0.1, z_floor)) / 0.1 / 10
-    check(abs(floor - flat) < 0.2,
-          f"floor is solid under the case's flat {flat:.1f} mm middle",
-          f"measured {floor:.1f} mm")
-    notch = overlap(m, box(-p["NOTCH_R"] + 2, p["NOTCH_R"] - 2, out_d - 4, out_d,
-                           z_floor - p["FLOOR_T"], z_floor))
-    check(notch < V_TOL, "thumb notch is open at the mouth",
-          f"{notch:.1f} mm^3 of floor left in it")
+    # The case's section is a stadium, so the face it lies on is flat only
+    # across its middle. The thumb slot eats into that, and what is left either
+    # side of it is what the case actually rests on.
+    flat = p["CASE_W"] - p["CASE_T"]
+    want = flat - p["NOTCH_W"]
+
+    def floor_width(y, half):
+        return overlap(m, box(-flat / 2, flat / 2, y - half, y + half,
+                              z_floor - 0.1, z_floor)) / 0.1 / (2 * half)
+
+    strips = floor_width(out_d - p["NOTCH_L"] / 2, 5)
+    check(abs(strips - want) < 0.3,
+          f"{want:.1f} mm of flat floor either side of the slot carries the case",
+          f"measured {strips:.1f} mm, {want / 2:.2f} mm a side")
+    check(want / 2 >= 4.0, "each strip is wide enough to rest on, not an edge",
+          f"{want / 2:.2f} mm")
+    solid = floor_width((p["BACK_T"] + out_d - p["NOTCH_L"]) / 2, 3)
+    check(abs(solid - flat) < 0.3, "floor is solid behind the slot",
+          f"measured {solid:.1f} mm of the case's flat {flat:.1f} mm")
+
+    # The slot has to run back far enough for a thumb to get behind the case.
+    slot = box(-p["NOTCH_W"] / 2 + 1, p["NOTCH_W"] / 2 - 1,
+               out_d - p["NOTCH_L"] + p["NOTCH_W"] / 2 + 1, out_d,
+               z_floor - p["FLOOR_T"], z_floor)
+    check(overlap(m, slot) < V_TOL,
+          f"slot is open all {p['NOTCH_L']:.0f} mm from the mouth",
+          f"{overlap(m, slot):.1f} mm^3 of floor left in it")
+    check(p["NOTCH_L"] > p["CASE_D"] / 2,
+          "it reaches past the middle of the case, so a thumb can drag it out",
+          f"{p['NOTCH_L']:.0f} mm of a {p['CASE_D']:.0f} mm case")
 
     print("fasteners")
     def cyl(x, r, z0, z1):
