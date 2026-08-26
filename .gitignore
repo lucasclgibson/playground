@@ -1,2 +1,5 @@
 node_modules
 vendor
+
+# Personal build of the DVSA quick-fill script — contains licence details
+dvsa-quickfill/dvsa-quickfill.personal.user.js
