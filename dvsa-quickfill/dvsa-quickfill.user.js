@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         DVSA Quick Fill
 // @namespace    https://github.com/lucasclgibson/playground
-// @version      1.0.0
-// @description  Fills the DVSA driving test sign-in form from details saved in your browser, so signing in is one keypress instead of two numbers typed by hand.
+// @version      2.0.0
+// @description  Fills the DVSA driving test sign-in form from details saved on your device. Built for iPhone Safari, works on desktop too.
 // @match        *://*.dvsa.gov.uk/*
 // @run-at       document-idle
 // @grant        none
@@ -20,7 +20,11 @@
   };
 
   const STORE_KEY = 'dvsa-quickfill:details';
+  const PROMPTED_KEY = 'dvsa-quickfill:prompted';
   const PANEL_ID = 'dvsa-quickfill-panel';
+  const BUTTON_ID = 'dvsa-quickfill-button';
+  const TOAST_ID = 'dvsa-quickfill-toast';
+  const LONG_PRESS_MS = 550;
 
   const FIELDS = [
     {
@@ -31,7 +35,7 @@
     },
     {
       key: 'theory',
-      label: 'Theory test pass number',
+      label: 'Theory pass number or booking reference',
       hints: [
         'theory',
         'certificate',
@@ -177,16 +181,18 @@
 
     for (let i = 0; i < buttons.length; i += 1) {
       const button = buttons[i];
-      if (button.disabled) continue;
+      if (button.disabled || button.id === BUTTON_ID || button.closest('#' + PANEL_ID)) continue;
       const text = (button.textContent || button.value || '').toLowerCase();
       for (let j = 0; j < wanted.length; j += 1) {
         if (text.indexOf(wanted[j]) !== -1) return button;
       }
     }
 
-    return buttons.find(function (button) {
-      return !button.disabled && button.type === 'submit';
-    }) || null;
+    return (
+      buttons.find(function (button) {
+        return !button.disabled && button.type === 'submit' && button.id !== BUTTON_ID;
+      }) || null
+    );
   }
 
   // ------------------------------------------------------------- filling in
@@ -208,7 +214,7 @@
   function fill(options) {
     const details = loadDetails();
     if (!details) {
-      openPanel('No details saved yet.');
+      openPanel('Enter the two numbers once. They stay on this device.');
       return 0;
     }
 
@@ -219,29 +225,37 @@
       const input = fields[spec.key];
       const value = details[spec.key];
       if (!input || !value) return;
-      // Don't clobber something the user has started typing unless asked to.
+      // Don't clobber something already typed unless we were asked to.
       if (input.value && !options.force) return;
       setValue(input, value);
       flash(input);
       filled += 1;
     });
 
-    if (filled === 0) {
+    const alreadyComplete =
+      filled === 0 &&
+      FIELDS.every(function (spec) {
+        return !fields[spec.key] || fields[spec.key].value;
+      }) &&
+      Boolean(fields.licence || fields.theory);
+
+    if (filled === 0 && !alreadyComplete) {
       toast('Nothing to fill on this page');
       return 0;
     }
 
     const submit = findSubmit();
-    if (submit) {
-      if (options.submit) {
-        toast('Filled — submitting');
-        submit.click();
-        return filled;
-      }
-      submit.focus();
+    if (submit && options.submit) {
+      toast('Signing in');
+      submit.click();
+      return filled;
     }
 
-    toast('Filled ' + filled + ' field' + (filled === 1 ? '' : 's') + ' — press Enter');
+    if (submit) submit.focus();
+    // Name the real button rather than guessing: the service calls it
+    // "Continue" on some steps and "Sign in" on others.
+    const buttonLabel = submit ? (submit.textContent || submit.value || '').trim().split('\n')[0] : '';
+    toast(filled ? (buttonLabel ? 'Filled — tap ' + buttonLabel : 'Filled') : 'Already filled in');
     return filled;
   }
 
@@ -253,26 +267,125 @@
     }, 900);
   }
 
+  // -------------------------------------------------------- the tap target
+
+  // iPhone has no keyboard shortcuts to lean on, so the floating button is the
+  // primary control: tap to fill and sign in, hold to edit the saved details.
+  // It only appears on pages that actually have the sign-in fields.
+  function ensureButton(shouldShow) {
+    const existing = document.getElementById(BUTTON_ID);
+
+    if (!shouldShow) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+
+    const button = document.createElement('button');
+    button.id = BUTTON_ID;
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Fill DVSA sign-in details and sign in. Press and hold to edit them.');
+    button.style.cssText = [
+      'position:fixed',
+      'right:16px',
+      'bottom:calc(16px + env(safe-area-inset-bottom, 0px))',
+      'z-index:2147483646',
+      'min-height:56px',
+      'padding:10px 20px',
+      'background:#00703c',
+      'color:#fff',
+      'border:0',
+      'border-radius:28px',
+      'box-shadow:0 4px 14px rgba(0,0,0,.35)',
+      'font:600 17px/1.2 -apple-system, "GDS Transport", Arial, sans-serif',
+      'text-align:center',
+      'cursor:pointer',
+      '-webkit-touch-callout:none',
+      '-webkit-user-select:none',
+      'user-select:none',
+      '-webkit-tap-highlight-color:transparent',
+      'touch-action:manipulation',
+    ].join(';');
+
+    const main = document.createElement('span');
+    main.textContent = 'Fill & sign in';
+    main.style.cssText = 'display:block;';
+
+    const hint = document.createElement('span');
+    hint.textContent = 'hold to edit';
+    hint.style.cssText = 'display:block;font-size:12px;font-weight:400;opacity:.85;margin-top:2px;';
+
+    button.appendChild(main);
+    button.appendChild(hint);
+
+    let timer = null;
+    let handledAsLongPress = false;
+
+    function startPress() {
+      handledAsLongPress = false;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(function () {
+        handledAsLongPress = true;
+        button.style.transform = 'scale(.96)';
+        openPanel('');
+      }, LONG_PRESS_MS);
+    }
+
+    function endPress(activate) {
+      window.clearTimeout(timer);
+      button.style.transform = '';
+      if (activate && !handledAsLongPress) {
+        fill({ force: true, submit: true });
+      }
+    }
+
+    button.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+      startPress();
+    });
+    button.addEventListener('pointerup', function (event) {
+      event.preventDefault();
+      endPress(true);
+    });
+    button.addEventListener('pointercancel', function () {
+      endPress(false);
+    });
+    button.addEventListener('pointerleave', function () {
+      endPress(false);
+    });
+    // Belt and braces for anything that reports no pointer events at all.
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      if (!window.PointerEvent) fill({ force: true, submit: true });
+    });
+
+    document.body.appendChild(button);
+  }
+
   // ------------------------------------------------------------------- UI
 
   function toast(message) {
-    const existing = document.getElementById('dvsa-quickfill-toast');
+    const existing = document.getElementById(TOAST_ID);
     if (existing) existing.remove();
 
     const node = document.createElement('div');
-    node.id = 'dvsa-quickfill-toast';
+    node.id = TOAST_ID;
     node.textContent = message;
     node.style.cssText = [
       'position:fixed',
-      'bottom:16px',
-      'right:16px',
+      'left:50%',
+      'transform:translateX(-50%)',
+      'bottom:calc(88px + env(safe-area-inset-bottom, 0px))',
       'z-index:2147483647',
+      'max-width:calc(100vw - 32px)',
       'background:#0b0c0c',
       'color:#fff',
-      'padding:10px 14px',
-      'border-radius:4px',
-      'font:16px/1.3 "GDS Transport", Arial, sans-serif',
+      'padding:10px 16px',
+      'border-radius:20px',
+      'font:16px/1.3 -apple-system, "GDS Transport", Arial, sans-serif',
+      'text-align:center',
       'box-shadow:0 2px 8px rgba(0,0,0,.35)',
+      'pointer-events:none',
     ].join(';');
     document.body.appendChild(node);
     window.setTimeout(function () {
@@ -291,16 +404,19 @@
     panel.id = PANEL_ID;
     panel.style.cssText = [
       'position:fixed',
-      'top:16px',
-      'right:16px',
+      'left:50%',
+      'transform:translateX(-50%)',
+      'top:calc(16px + env(safe-area-inset-top, 0px))',
       'z-index:2147483647',
-      'width:320px',
+      'width:min(360px, calc(100vw - 24px))',
+      'box-sizing:border-box',
       'background:#fff',
       'color:#0b0c0c',
       'border:2px solid #0b0c0c',
+      'border-radius:8px',
       'padding:16px',
-      'font:16px/1.4 "GDS Transport", Arial, sans-serif',
-      'box-shadow:0 4px 16px rgba(0,0,0,.3)',
+      'font:16px/1.4 -apple-system, "GDS Transport", Arial, sans-serif',
+      'box-shadow:0 8px 24px rgba(0,0,0,.35)',
     ].join(';');
 
     const heading = document.createElement('h2');
@@ -326,8 +442,12 @@
       input.type = 'text';
       input.value = details[spec.key] || '';
       input.disabled = locked;
+      input.autocapitalize = 'characters';
+      input.autocorrect = 'off';
+      input.spellcheck = false;
+      // 16px keeps iOS Safari from zooming the page when the field is focused.
       input.style.cssText =
-        'width:100%;box-sizing:border-box;margin:0 0 12px;padding:6px 8px;border:2px solid #0b0c0c;font:16px "GDS Transport", Arial, sans-serif;';
+        'width:100%;box-sizing:border-box;margin:0 0 12px;padding:10px;border:2px solid #0b0c0c;border-radius:4px;font:16px -apple-system, "GDS Transport", Arial, sans-serif;';
 
       inputs[spec.key] = input;
       panel.appendChild(label);
@@ -336,7 +456,7 @@
 
     if (locked) {
       const lockNote = document.createElement('p');
-      lockNote.textContent = 'Details are baked into this build of the script. Edit the script to change them.';
+      lockNote.textContent = 'These are baked into this build of the script. Edit the script to change them.';
       lockNote.style.cssText = 'margin:0 0 12px;color:#505a5f;font-size:13px;';
       panel.appendChild(lockNote);
     }
@@ -344,11 +464,13 @@
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:8px;';
 
+    const buttonStyle =
+      'min-height:44px;border:0;border-radius:4px;padding:10px 14px;font:600 16px -apple-system, "GDS Transport", Arial, sans-serif;cursor:pointer;';
+
     const save = document.createElement('button');
     save.type = 'button';
     save.textContent = locked ? 'Fill now' : 'Save and fill';
-    save.style.cssText =
-      'flex:1;background:#00703c;color:#fff;border:0;padding:8px 10px;font:16px "GDS Transport", Arial, sans-serif;cursor:pointer;';
+    save.style.cssText = buttonStyle + 'flex:1;background:#00703c;color:#fff;';
     save.addEventListener('click', function () {
       if (!locked) {
         saveDetails({
@@ -363,8 +485,7 @@
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = 'Close';
-    close.style.cssText =
-      'background:#f3f2f1;color:#0b0c0c;border:0;padding:8px 10px;font:16px "GDS Transport", Arial, sans-serif;cursor:pointer;';
+    close.style.cssText = buttonStyle + 'background:#f3f2f1;color:#0b0c0c;';
     close.addEventListener('click', function () {
       panel.remove();
     });
@@ -378,7 +499,7 @@
       forget.type = 'button';
       forget.textContent = 'Forget saved details';
       forget.style.cssText =
-        'margin-top:10px;background:none;border:0;padding:0;color:#d4351c;font:14px "GDS Transport", Arial, sans-serif;text-decoration:underline;cursor:pointer;';
+        'margin-top:12px;min-height:44px;width:100%;background:none;border:0;padding:0;color:#d4351c;font:14px -apple-system, "GDS Transport", Arial, sans-serif;text-decoration:underline;cursor:pointer;';
       forget.addEventListener('click', function () {
         clearDetails();
         panel.remove();
@@ -388,11 +509,11 @@
     }
 
     document.body.appendChild(panel);
-    if (!locked) inputs.licence.focus();
   }
 
   // -------------------------------------------------------------- wiring up
 
+  // Desktop convenience. On iPhone the floating button does all of this.
   document.addEventListener(
     'keydown',
     function (event) {
@@ -418,21 +539,46 @@
     true
   );
 
-  function autofill() {
+  function refresh() {
     const fields = findFields();
-    if (!fields.licence && !fields.theory) return;
-    if (!loadDetails()) return;
+    const onSignInPage = Boolean(fields.licence || fields.theory);
+
+    ensureButton(onSignInPage);
+    if (!onSignInPage) return;
+
+    if (!loadDetails()) {
+      let prompted = null;
+      try {
+        prompted = window.sessionStorage.getItem(PROMPTED_KEY);
+        window.sessionStorage.setItem(PROMPTED_KEY, '1');
+      } catch (err) {
+        prompted = '1';
+      }
+      if (!prompted && !document.getElementById(PANEL_ID)) {
+        openPanel('Enter the two numbers once. They stay on this device.');
+      }
+      return;
+    }
+
     fill({ force: false, submit: false });
   }
 
-  autofill();
+  refresh();
 
   // The service moves between steps without a full page load, so watch for the
   // form turning up later.
   let pending = null;
-  const observer = new MutationObserver(function () {
+  const observer = new MutationObserver(function (records) {
+    const ours = records.every(function (record) {
+      return (
+        record.target.id === BUTTON_ID ||
+        record.target.id === TOAST_ID ||
+        (record.target.closest && record.target.closest('#' + PANEL_ID))
+      );
+    });
+    if (ours) return;
     window.clearTimeout(pending);
-    pending = window.setTimeout(autofill, 300);
+    pending = window.setTimeout(refresh, 300);
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 })();

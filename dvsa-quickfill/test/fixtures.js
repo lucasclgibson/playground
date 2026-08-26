@@ -31,8 +31,24 @@ const ANONYMOUS = `
 `;
 
 function page(body) {
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Change your driving test</title></head>
+  // The viewport meta matters: every GOV.UK page ships one, and without it a
+  // mobile browser lays out at 980px and scales down, which would make any
+  // on-screen position assertion meaningless.
+  return `<!doctype html><html><head><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Change your driving test</title></head>
   <body><h1>Change your driving test</h1><form onsubmit="event.preventDefault();document.body.dataset.submitted='yes'">${body}</form></body></html>`;
 }
 
-module.exports = { LABELLED: page(LABELLED), ANONYMOUS: page(ANONYMOUS) };
+// A page on the same site with nothing to fill — the floating button should
+// stay out of the way here.
+const UNRELATED = `
+  <p>Your driving test is booked for 14 March.</p>
+  <a class="govuk-link" href="/change">Change your test</a>
+`;
+
+module.exports = {
+  LABELLED: page(LABELLED),
+  ANONYMOUS: page(ANONYMOUS),
+  UNRELATED: page(UNRELATED),
+};
