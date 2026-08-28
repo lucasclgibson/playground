@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         DVSA Quick Fill
+// @name         Jacks Spicy Test Booker
 // @namespace    https://github.com/lucasclgibson/playground
-// @version      2.0.0
-// @description  Fills the DVSA driving test sign-in form from details saved on your device. Built for iPhone Safari, works on desktop too.
+// @version      3.0.0
+// @description  Fills the DVSA driving test sign-in form from details saved on your device. The iPhone half of Jacks Spicy Test Booker.
 // @match        *://*.dvsa.gov.uk/*
 // @run-at       document-idle
 // @grant        none
@@ -420,7 +420,7 @@
     ].join(';');
 
     const heading = document.createElement('h2');
-    heading.textContent = 'DVSA Quick Fill';
+    heading.textContent = 'Jacks Spicy Test Booker';
     heading.style.cssText = 'margin:0 0 8px;font-size:19px;font-weight:700;';
     panel.appendChild(heading);
 

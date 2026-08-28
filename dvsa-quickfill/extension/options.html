@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jacks Spicy Test Booker — settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 128 128" focusable="false">
+            <defs>
+              <linearGradient id="heat" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#f4642b" />
+                <stop offset="1" stop-color="#c9200f" />
+              </linearGradient>
+            </defs>
+            <rect width="128" height="128" rx="26" fill="url(#heat)" />
+            <path
+              d="M88 28c6 26-4 50-26 61-15 7-33 3-33-11 0-10 8-15 17-12 16 5 29-8 32-28"
+              fill="none"
+              stroke="#fff"
+              stroke-width="24"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
+        <h1>Jacks Spicy Test Booker</h1>
+      </div>
+      <p class="lede">
+        These details are stored on this computer, in this browser profile only. They are never sent
+        anywhere, never synced to your Google account, and are never written into the DVSA page.
+      </p>
+
+      <form id="form" novalidate>
+        <fieldset>
+          <legend>Booking details</legend>
+
+          <div class="field">
+            <label for="licence">Driving licence number</label>
+            <p class="hint">The 16-character driver number. If the licence prints a 2-digit issue number after it, leave that off.</p>
+            <input id="licence" name="licence" type="text" autocomplete="off" spellcheck="false" />
+            <p class="error" id="error-licence" hidden></p>
+          </div>
+
+          <div class="field">
+            <label for="theory">Theory test pass number</label>
+            <p class="hint">On the theory test pass certificate.</p>
+            <input id="theory" name="theory" type="text" inputmode="numeric" autocomplete="off" />
+            <p class="error" id="error-theory" hidden></p>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Payment card</legend>
+          <p class="hint hint-block">
+            Only fill this in on a computer you control. Anyone with access to this browser profile can
+            read these back.
+          </p>
+
+          <div class="field">
+            <label for="cardName">Name on card</label>
+            <input id="cardName" name="cardName" type="text" autocomplete="off" />
+            <p class="error" id="error-cardName" hidden></p>
+          </div>
+
+          <div class="field">
+            <label for="cardNumber">Card number</label>
+            <input
+              id="cardNumber"
+              name="cardNumber"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <p class="error" id="error-cardNumber" hidden></p>
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label for="cardExpiry">Expiry date</label>
+              <p class="hint">MM/YY</p>
+              <input
+                id="cardExpiry"
+                name="cardExpiry"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="MM/YY"
+              />
+              <p class="error" id="error-cardExpiry" hidden></p>
+            </div>
+
+            <div class="field">
+              <label for="cardCvv">Security code</label>
+              <p class="hint">3 digits on the back</p>
+              <input id="cardCvv" name="cardCvv" type="text" inputmode="numeric" autocomplete="off" />
+              <p class="error" id="error-cardCvv" hidden></p>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button class="primary" type="submit" id="save">Save</button>
+          <button class="danger" type="button" id="clear">Delete everything</button>
+          <span class="saved" id="saved" hidden>Saved</span>
+        </div>
+      </form>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

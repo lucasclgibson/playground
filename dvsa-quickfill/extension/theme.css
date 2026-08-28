@@ -1,0 +1,43 @@
+/* Shared tokens for the side panel and the options page. */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --bg-raised: #f6f7f7;
+  --border: #d8dcde;
+  --text: #16191a;
+  --muted: #6b7477;
+  --accent: #00703c;
+  --accent-text: #ffffff;
+  --danger: #b8290f;
+  --focus: #ffdd00;
+  --brand: #c9200f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16191a;
+    --bg-raised: #21262a;
+    --border: #363c41;
+    --text: #eef1f2;
+    --muted: #9aa4a9;
+    --accent: #17a35c;
+    --accent-text: #06120b;
+    --danger: #ff8a70;
+    --brand: #ff7a4d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

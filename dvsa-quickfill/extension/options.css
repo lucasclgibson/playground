@@ -1,0 +1,152 @@
+@import url('theme.css');
+
+body {
+  margin: 0;
+  padding: 32px 20px 64px;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+main {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 8px;
+}
+
+.brand-mark {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+}
+
+.brand-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  margin: 0 0 26px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+fieldset {
+  margin: 0 0 24px;
+  padding: 16px 16px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+legend {
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field {
+  margin: 0 0 16px;
+}
+
+label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hint-block {
+  margin: 0 0 16px;
+}
+
+input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font: 14px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+input:focus {
+  border-color: var(--accent);
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.error {
+  margin: 5px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* Worth saying, but not worth stopping a save for. */
+.error.is-warning {
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+button {
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.danger {
+  background: none;
+  border-color: var(--border);
+  color: var(--danger);
+}
+
+.saved {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
