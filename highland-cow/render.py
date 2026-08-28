@@ -92,9 +92,13 @@ if __name__ == "__main__":
     ap.add_argument("--angles", default="0,-35,-90,180")
     ap.add_argument("--elev", type=float, default=8.0)
     ap.add_argument("--width", type=int, default=560)
+    ap.add_argument("--flat", action="store_true",
+                    help="face normals instead of smoothed ones, for faceted parts")
     a = ap.parse_args()
 
     mesh = trimesh.load(a.stl)
+    if a.flat:
+        mesh.unmerge_vertices()
     tiles = [render(mesh, float(t), a.elev, w=a.width) for t in a.angles.split(",")]
     Image.fromarray(np.concatenate(tiles, axis=1)).save(a.out)
     print(f"wrote {a.out}  ({len(tiles)} views)")
