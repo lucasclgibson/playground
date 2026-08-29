@@ -22,7 +22,7 @@ from skimage.measure import label, marching_cubes
 import design
 
 CURVE_R = 110.0           # mm: radius the face is wrapped on
-WALL_T = 2.6              # mm: the face is a constant-thickness wall, square edged
+WALL_T = 2.3              # mm: the face is a constant-thickness wall, square edged
 COMB_T = 2.0              # mm: comb thickness where it meets the band
 COMB_TIP = 1.2            # mm: ... tapering to this at the tooth tips
 SPINE_W = 5.0             # mm: how deep the comb's spine is, front to back
@@ -97,7 +97,7 @@ def build(voxel=0.25, curve_r=CURVE_R, scale=1.0, decimate=None, verbose=True):
     if scale != 1.0:
         jewel, band = (affinity.scale(g, scale, scale, origin=(0, 0)) for g in (jewel, band))
     face = unary_union([jewel, band])
-    comb = design.comb_plan(curve_r, span=24.0 * scale, spine_w=SPINE_W)
+    comb = design.comb_plan(curve_r, span=28.0 * scale, spine_w=SPINE_W)
 
     table = lookup_2d(face)
     u_max = max(abs(face.bounds[0]), abs(face.bounds[2]))
@@ -184,9 +184,17 @@ def mesh_from(field, origin, voxel, decimate=None):
     m.update_faces(m.nondegenerate_faces())
     m.remove_unreferenced_vertices()
     if decimate and len(m.faces) > decimate:
-        m = m.simplify_quadric_decimation(face_count=decimate)
-        m.merge_vertices()
-        print(f"  decimated to {len(m.faces):,} faces")
+        # Decimation can weld two surfaces that pass close together -- here the
+        # wall meeting the comb spine at the bed -- leaving non-manifold pinch
+        # edges. Keep the reduction only if the result is still a clean solid.
+        d = m.simplify_quadric_decimation(face_count=decimate)
+        d.merge_vertices()
+        if d.is_watertight and d.is_winding_consistent:
+            print(f"  decimated to {len(d.faces):,} faces")
+            m = d
+        else:
+            print(f"  decimation to {decimate:,} pinched the mesh; keeping "
+                  f"{len(m.faces):,} faces")
     return m
 
 

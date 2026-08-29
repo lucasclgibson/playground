@@ -28,11 +28,11 @@ LEAF_HALF_MIN, LEAF_HALF_MAX = 2.4, 3.9   # narrower, to keep gaps open now
                                           # that the strands are thicker
 PIN_HEIGHT = 0.62         # how far up its gap a pin stands, as a fraction
 
-MIN_STRAND = 2.3
-W_RIM, W_BASE, W_LEAF, W_PIN, W_CURL = 2.6, 3.2, 2.5, 2.3, 2.5
-PIN_R = 2.1
+MIN_STRAND = 2.0
+W_RIM, W_BASE, W_LEAF, W_PIN, W_CURL = 2.2, 2.8, 2.1, 2.0, 2.1
+PIN_R = 1.85
 
-TEETH = 7
+TEETH = 8
 TOOTH_PITCH = 7.0
 TOOTH_LEN = 22.0
 
@@ -114,7 +114,7 @@ def band():
     return unary_union([lune.buffer(0), stroke(a, W_BASE)])
 
 
-def comb_plan(curve_r, span=24.0, spine_w=5.0):
+def comb_plan(curve_r, span=28.0, spine_w=5.0):
     """The comb in plan: a spine following the head curve, teeth running back.
 
     Drawn in the horizontal plane the piece prints on, at right angles to the

@@ -5,13 +5,13 @@ printable in one piece with no supports.
 
 ![the tiara](preview_3d.png)
 
-**`tiara_comb_95mm.stl`** — 95.9 mm wide × 30.0 mm tall × 27.5 mm front to back,
-watertight, one body, about 5 g of filament.
+**`tiara_comb_95mm.stl`** — 95.5 mm wide × 30.0 mm tall × 28.2 mm front to back,
+watertight, one body, about 4 g of filament.
 
-The face is a **flat 2.6 mm wall** with square edges — no bevel or rolled-over
+The face is a **flat 2.3 mm wall** with square edges — no bevel or rolled-over
 section on the strands, which keeps the perimeters simple to slice. Strands are
-**2.3–2.6 mm wide**, so the thinnest thing in the crown is about six passes of a
-0.4 mm nozzle. The seven-tooth comb **tapers from 2.0 mm where it meets the band
+**2.0–2.8 mm wide**, so the thinnest thing in the crown is five passes of a
+0.4 mm nozzle. The eight-tooth comb **tapers from 2.0 mm where it meets the band
 down to 1.2 mm at the tooth tips**, so the teeth end thin and springy while
 keeping their full section where they carry the tiara; the underside stays flat
 on the bed.
@@ -34,8 +34,8 @@ voxel or two of rounding — nothing a slicer would even build support for.
 * **PETG or PLA+ rather than plain PLA.** The teeth are 2.6 mm thick and 22 mm
   long, and printed in this orientation the layers run across a tooth, which is
   the strong way.
-* Nothing in the crown is marginal: the narrowest strand is 2.3 mm wide in a
-  2.6 mm wall, and the teeth are 1.9 mm across at their tips.
+* Nothing in the crown is marginal: the narrowest strand is 2.0 mm wide in a
+  2.3 mm wall, and the teeth are 1.9 mm across at their tips.
 * The arches print as bridges between the leaf tips — short spans over the
   openings, which come out clean.
 
@@ -48,7 +48,7 @@ there is nowhere to glue a real stone in.
 The face: a lens between two arcs — a slim band below and a rim arching over —
 filled with five pointed leaves whose tips meet the rim, a ball-tipped pin
 standing in each gap, a small curl at either end and a finial at the crown.
-Below it, a seven-tooth comb at right angles.
+Below it, an eight-tooth comb at right angles.
 
 Leaves widen with their own height, so the short outer ones stay as slender as
 the tall middle ones instead of turning into circles — capped narrow enough that
@@ -85,6 +85,11 @@ fails rather than handing you something that prints as lace.
 Every run reports size, watertightness, body count, the narrowest wall in the
 drawing, whether the centre of mass sits over the footprint, and the unsupported
 area per layer. It exits non-zero if any of those fail.
+
+`--decimate` is applied only if the result is still a clean solid. Simplifying
+this mesh welds the wall to the comb spine where they meet at the bed, which
+leaves non-manifold pinch edges, so the run keeps the full mesh instead and says
+so. That is why the file is around 200k triangles rather than 140k.
 
 Files: `curves.py` (Bézier, arc, spiral, stroking), `design.py` (the face and the
 comb plan, all coordinates and widths in one place), `tiara.py` (wrapping, height
