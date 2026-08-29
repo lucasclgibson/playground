@@ -24,14 +24,15 @@ RIM_RISE = 26.0           # how high the outer rim arcs over it
 
 LEAVES = 5
 LEAF_ASPECT = 0.30        # leaf half width as a fraction of its own height
-LEAF_HALF_MIN, LEAF_HALF_MAX = 2.4, 5.2
+LEAF_HALF_MIN, LEAF_HALF_MAX = 2.4, 3.9   # narrower, to keep gaps open now
+                                          # that the strands are thicker
 PIN_HEIGHT = 0.62         # how far up its gap a pin stands, as a fraction
 
-MIN_STRAND = 1.6
-W_RIM, W_BASE, W_LEAF, W_PIN, W_CURL = 1.8, 2.4, 1.7, 1.6, 1.7
-PIN_R = 1.55
+MIN_STRAND = 2.3
+W_RIM, W_BASE, W_LEAF, W_PIN, W_CURL = 2.6, 3.2, 2.5, 2.3, 2.5
+PIN_R = 2.1
 
-TEETH = 9
+TEETH = 7
 TOOTH_PITCH = 7.0
 TOOTH_LEN = 22.0
 
@@ -113,7 +114,7 @@ def band():
     return unary_union([lune.buffer(0), stroke(a, W_BASE)])
 
 
-def comb_plan(curve_r, span=30.0, spine_w=5.0):
+def comb_plan(curve_r, span=24.0, spine_w=5.0):
     """The comb in plan: a spine following the head curve, teeth running back.
 
     Drawn in the horizontal plane the piece prints on, at right angles to the
@@ -127,7 +128,7 @@ def comb_plan(curve_r, span=30.0, spine_w=5.0):
     for i in range(TEETH):
         x = x0 + i * TOOTH_PITCH
         y = math.sqrt(max(curve_r ** 2 - x * x, 0.0)) - curve_r
-        parts.append(stroke(np.array([(x, y + 1.0), (x, y - TOOTH_LEN)]), 2.9, 2.2))
+        parts.append(stroke(np.array([(x, y + 1.0), (x, y - TOOTH_LEN)]), 2.5, 1.9))
     return unary_union(parts)
 
 

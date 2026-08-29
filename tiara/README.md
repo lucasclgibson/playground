@@ -5,14 +5,16 @@ printable in one piece with no supports.
 
 ![the tiara](preview_3d.png)
 
-**`tiara_comb_94mm.stl`** — 95.0 mm wide × 30.0 mm tall × 29.2 mm front to back,
-watertight, one body, about 4 g of filament.
+**`tiara_comb_95mm.stl`** — 95.9 mm wide × 30.0 mm tall × 27.5 mm front to back,
+watertight, one body, about 5 g of filament.
 
-The face is a **flat 2.0 mm wall** with square edges — no bevel or rolled-over
-section on the strands, which keeps the perimeters simple to slice. The comb
-**tapers from 2.0 mm where it meets the band down to 1.2 mm at the tooth tips**,
-so the teeth end thin and springy while keeping their full section where they
-carry the tiara; the underside stays flat on the bed.
+The face is a **flat 2.6 mm wall** with square edges — no bevel or rolled-over
+section on the strands, which keeps the perimeters simple to slice. Strands are
+**2.3–2.6 mm wide**, so the thinnest thing in the crown is about six passes of a
+0.4 mm nozzle. The seven-tooth comb **tapers from 2.0 mm where it meets the band
+down to 1.2 mm at the tooth tips**, so the teeth end thin and springy while
+keeping their full section where they carry the tiara; the underside stays flat
+on the bed.
 
 The face is wrapped onto a **110 mm radius**, so it curves around the head as it
 comes off the printer — no heat-forming needed. The comb sits at right angles to
@@ -32,8 +34,8 @@ voxel or two of rounding — nothing a slicer would even build support for.
 * **PETG or PLA+ rather than plain PLA.** The teeth are 2.6 mm thick and 22 mm
   long, and printed in this orientation the layers run across a tooth, which is
   the strong way.
-* The crown is deliberately fine: strands are 1.6–1.8 mm wide in a 2.0 mm wall,
-  which is four or five passes of a 0.4 mm nozzle.
+* Nothing in the crown is marginal: the narrowest strand is 2.3 mm wide in a
+  2.6 mm wall, and the teeth are 1.9 mm across at their tips.
 * The arches print as bridges between the leaf tips — short spans over the
   openings, which come out clean.
 
@@ -46,10 +48,11 @@ there is nowhere to glue a real stone in.
 The face: a lens between two arcs — a slim band below and a rim arching over —
 filled with five pointed leaves whose tips meet the rim, a ball-tipped pin
 standing in each gap, a small curl at either end and a finial at the crown.
-Below it, a nine-tooth comb at right angles.
+Below it, a seven-tooth comb at right angles.
 
 Leaves widen with their own height, so the short outer ones stay as slender as
-the tall middle ones instead of turning into circles. Each end curl stops short
+the tall middle ones instead of turning into circles — capped narrow enough that
+thickening the strands did not close the gaps between them and their pins. Each end curl stops short
 of the top of its sweep: carry it to the apex and the last stretch runs near
 horizontal, which starts in mid-air when the piece is printed standing.
 
