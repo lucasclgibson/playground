@@ -1,12 +1,12 @@
-"""Mesh the tiara: flat back, rounded strands, domed stones.
+"""Mesh the tiara: a curved face standing upright, comb at right angles below it.
 
-    python3 tiara.py --out tiara_comb_95mm.stl
+    python3 tiara.py --out tiara_comb_97mm.stl
 
-The piece is a height field over a flat base -- every surface either rises from
-the bed or curves over -- so it prints face-up with no supports anywhere, and the
-back comes out flat against the hair. Strands are rounded to their own half
-width, so a 2.2 mm strand ends up round in section like wire; stones sit on top
-as hemispheres of the radius they were drawn with.
+The face is drawn flat in `design.py` and wrapped onto a cylinder of radius
+`--curve`, so the tiara follows the head. Strands are rounded to their own half
+width, giving a round wire section; pin heads become spheres. The comb is a flat
+plate at right angles to that face, and the piece prints standing on it -- comb
+down on the bed, crown in the air, which is also the way it is worn.
 """
 
 import argparse
@@ -17,14 +17,15 @@ import trimesh
 from shapely import affinity
 from shapely.geometry import MultiPolygon
 from shapely.ops import unary_union
-from skimage.measure import marching_cubes
+from skimage.measure import label, marching_cubes
 
 import design
 
-COMB_T = 2.6              # mm: band and comb, the structural part
-JEWEL_T = 1.1             # mm: flat core under the scrollwork, before the doming
-STRAND_R = 1.0            # mm: strands round over to this radius
-BAND_R = 1.0              # mm: how far the crescent's edges roll over
+CURVE_R = 110.0           # mm: radius the face is wrapped on
+STRAND_R = 1.15           # mm: half thickness of a strand, so 2.3 mm of wire
+COMB_T = 2.6              # mm: comb plate thickness
+SPINE_W = 5.0             # mm: how deep the comb's spine is, front to back
+JOIN_K = 1.2              # fillet where the face meets the comb
 
 
 def parts(g):
@@ -41,8 +42,8 @@ def segments(poly):
     return np.vstack(a), np.vstack(b)
 
 
-def distance_2d(poly, X, Y, chunk=30000):
-    """Exact signed distance to `poly` over the grid (negative inside)."""
+def distance_2d(poly, X, Y, chunk=40000):
+    """Exact signed distance to `poly` over a grid (negative inside)."""
     A, B = segments(poly)
     AB = B - A
     denom = np.einsum("ij,ij->i", AB, AB)
@@ -57,63 +58,122 @@ def distance_2d(poly, X, Y, chunk=30000):
     return out.reshape(X.shape)
 
 
-def dome(d, r):
-    """Height of a roll-over of radius `r` at signed distance `d` (inside < 0)."""
-    u = np.minimum(np.maximum(-d, 0.0), r)
+def lookup_2d(poly, step=0.2, pad=4.0):
+    """Precompute the face's distance field once, to sample per 3D voxel.
+
+    Evaluating an exact distance for every voxel would mean millions of points
+    against thousands of segments; a flat lookup plus bilinear sampling is the
+    same answer for a fraction of the work.
+    """
+    x0, y0, x1, y1 = poly.bounds
+    us = np.arange(x0 - pad, x1 + pad + step, step, dtype=np.float32)
+    vs = np.arange(y0 - pad, y1 + pad + step, step, dtype=np.float32)
+    U, V = np.meshgrid(us, vs, indexing="ij")
+    return distance_2d(poly, U, V), us[0], vs[0], step, us[-1], vs[-1]
+
+
+def sample_2d(table, U, V):
+    D, u0, v0, step, u1, v1 = table
+    gu = np.clip((U - u0) / step, 0, D.shape[0] - 1.001)
+    gv = np.clip((V - v0) / step, 0, D.shape[1] - 1.001)
+    i = gu.astype(np.int32)
+    j = gv.astype(np.int32)
+    tu, tv = gu - i, gv - j
+    out = ((1 - tu) * (1 - tv) * D[i, j] + tu * (1 - tv) * D[i + 1, j]
+           + (1 - tu) * tv * D[i, j + 1] + tu * tv * D[i + 1, j + 1])
+    # Anything off the edge of the table is outside the face, not near it.
+    off = (U < u0) | (U > u1) | (V < v0) | (V > v1)
+    return np.where(off, np.maximum(out, 5.0), out)
+
+
+def roll(depth, r):
+    """Half thickness of a strand at `depth` inside its own outline."""
+    u = np.minimum(np.maximum(depth, 0.0), r)
     return np.sqrt(np.maximum(r * r - (r - u) ** 2, 0.0))
 
 
-def height_field(jewel, band, comb, stones, X, Y):
-    """How tall the piece stands at each point of the grid."""
-    d_band = distance_2d(band, X, Y)
-    d_comb = distance_2d(comb, X, Y)
-    d_jewel = distance_2d(jewel, X, Y)
-
-    h = np.where(d_comb < 0, COMB_T, 0.0)                  # teeth keep a flat section
-    h = np.where(d_band < 0, np.maximum(h, COMB_T + dome(d_band, BAND_R)), h)
-
-    h = np.where(d_jewel < 0, np.maximum(h, JEWEL_T + dome(d_jewel, STRAND_R)), h)
-
-    for (cx, cy), r in stones:                             # set the stones on top
-        d2 = (X - cx) ** 2 + (Y - cy) ** 2
-        cap = np.sqrt(np.maximum(r * r - d2, 0.0))
-        h = np.maximum(h, np.where(d2 < r * r, JEWEL_T + cap, 0.0))
-    return h, np.minimum(np.minimum(d_band, d_comb), d_jewel)
+def smin(a, b, k):
+    h = np.clip(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
+    return b + (a - b) * h - k * h * (1.0 - h)
 
 
-def build(voxel=0.25, decimate=None, scale=1.0, verbose=True):
-    jewel, band, comb, stones = design.build()
+def build(voxel=0.25, curve_r=CURVE_R, scale=1.0, decimate=None, verbose=True):
+    jewel, band, stones = design.face()
     if scale != 1.0:
-        # Scale the drawing only: thicknesses stay in millimetres, because they
-        # are set by what the printer can do, not by how big the tiara is.
-        jewel, band, comb = (affinity.scale(g, scale, scale, origin=(0, 0))
-                             for g in (jewel, band, comb))
+        jewel, band = (affinity.scale(g, scale, scale, origin=(0, 0)) for g in (jewel, band))
         stones = [((cx * scale, cy * scale), r * scale) for (cx, cy), r in stones]
-    whole = unary_union([jewel, band, comb])
-    x0, y0, x1, y1 = whole.bounds
-    pad = 1.5
-    xs = np.arange(x0 - pad, x1 + pad, voxel, dtype=np.float32)
-    ys = np.arange(y0 - pad, y1 + pad, voxel, dtype=np.float32)
-    X, Y = np.meshgrid(xs, ys, indexing="ij")
-    if verbose:
-        print(f"  outline {x1-x0:.1f} x {y1-y0:.1f} mm, {len(stones)} stones, "
-              f"grid {len(xs)}x{len(ys)}")
+    face = unary_union([jewel, band])
+    comb = design.comb_plan(curve_r, span=30.0 * scale, spine_w=SPINE_W)
 
-    h, d2 = height_field(jewel, band, comb, stones, X, Y)
-    zs = np.arange(-0.75, h.max() + 0.75, voxel, dtype=np.float32)
+    table = lookup_2d(face)
+    u_max = max(abs(face.bounds[0]), abs(face.bounds[2]))
+    reach = curve_r * np.sin(u_max / curve_r) + 3.0
+    cx0, cy0, cx1, cy1 = comb.bounds
+    xs = np.arange(-reach, reach + voxel, voxel, dtype=np.float32)
+    ys = np.arange(min(cy0, curve_r * np.cos(u_max / curve_r) - curve_r) - 3.0,
+                   max(cy1, 0.0) + 3.0 + voxel, voxel, dtype=np.float32)
+    zs = np.arange(-1.0, face.bounds[3] + 2.5 + voxel, voxel, dtype=np.float32)
+    if verbose:
+        print(f"  face {face.bounds[2]-face.bounds[0]:.1f} x {face.bounds[3]:.1f} mm "
+              f"wrapped on R{curve_r:.0f}; grid {len(xs)}x{len(ys)}x{len(zs)} "
+              f"= {len(xs)*len(ys)*len(zs)/1e6:.1f}M")
+
+    X = xs[:, None, None]
+    Y = ys[None, :, None]
     Z = zs[None, None, :]
 
-    # Solid where we are inside the outline and between the bed and the height
-    # field; the max() gives vertical walls, h gives the rounded top.
-    f = np.maximum(d2[:, :, None], np.maximum(Z - h[:, :, None], -Z))
-    f = f.astype(np.float32)
+    # Wrap: u runs along the head curve, d is the distance off that surface.
+    ring = Y + curve_r
+    rad = np.sqrt(X * X + ring * ring)
+    U = curve_r * np.arctan2(X, ring)
+    Dface = sample_2d(table, np.broadcast_to(U, (len(xs), len(ys), 1)),
+                      np.broadcast_to(Z, (len(xs), 1, len(zs))))
+    f = np.maximum(Dface, np.abs(rad - curve_r) - roll(-Dface, STRAND_R))
+
+    for (cu, cv), r in stones:                       # pin heads as real spheres
+        t = cu / curve_r
+        c = (curve_r * np.sin(t), curve_r * np.cos(t) - curve_r, cv)
+        f = np.minimum(f, np.sqrt((X - c[0]) ** 2 + (Y - c[1]) ** 2 + (Z - c[2]) ** 2) - r)
+
+    gx, gy = np.meshgrid(xs, ys, indexing="ij")
+    d_comb = distance_2d(comb, gx, gy)[:, :, None]
+    f = smin(f, np.maximum(d_comb, np.maximum(Z - COMB_T, -Z)), JOIN_K)
+    f = np.maximum(f, 1e-3 - Z).astype(np.float32)   # sit flat on the bed
+
     for sl in (np.s_[0, :, :], np.s_[-1, :, :], np.s_[:, 0, :], np.s_[:, -1, :],
                np.s_[:, :, 0], np.s_[:, :, -1]):
         f[sl] = np.abs(f[sl]) + 1.0
-    f[np.abs(f) < 1e-3] = -1e-3        # flat faces land on grid planes; nudge them off
+    f[np.abs(f) < 1e-3] = -1e-3
+    return f, (xs[0], ys[0], zs[0]), voxel, face, comb
 
-    verts, faces, _, _ = marching_cubes(f, level=0.0, spacing=(voxel,) * 3)
-    verts += np.array([xs[0], ys[0], zs[0]], dtype=verts.dtype)
+
+def unsupported(field, voxel):
+    """Area per layer that starts with nothing under it anywhere in its island.
+
+    Material anchored at either end of its own layer is a bridge, which prints;
+    a component with no support at all under any of it is what needs support.
+    """
+    occ = field < 0.0
+    out = np.zeros(occ.shape[2])
+    for k in range(1, occ.shape[2]):
+        layer = occ[:, :, k]
+        if not layer.any():
+            continue
+        below = occ[:, :, k - 1]
+        prop = below.copy()
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                prop |= np.roll(np.roll(below, dx, axis=0), dy, axis=1)
+        lab = label(layer, connectivity=2)
+        held = np.unique(lab[layer & prop])
+        floating = layer & ~np.isin(lab, held[held > 0])
+        out[k] = floating.sum() * voxel * voxel
+    return out
+
+
+def mesh_from(field, origin, voxel, decimate=None):
+    verts, faces, _, _ = marching_cubes(field, level=0.0, spacing=(voxel,) * 3)
+    verts += np.asarray(origin, dtype=verts.dtype)
     m = trimesh.Trimesh(verts, faces, process=False)
     if m.volume < 0:
         m.invert()
@@ -130,45 +190,53 @@ def build(voxel=0.25, decimate=None, scale=1.0, verbose=True):
         m = m.simplify_quadric_decimation(face_count=decimate)
         m.merge_vertices()
         print(f"  decimated to {len(m.faces):,} faces")
-    return m, whole
+    return m
 
 
-def report(m, whole):
+def report(m, face, comb, per_layer, voxel, z0):
     lo, hi = m.bounds
-    print(f"  size      {hi[0]-lo[0]:.1f} W x {hi[2]-lo[2]:.1f} D x {hi[1]-lo[1]:.1f} H mm")
+    print(f"  size      {hi[0]-lo[0]:.1f} W x {hi[1]-lo[1]:.1f} D x {hi[2]-lo[2]:.1f} H mm")
     print(f"  triangles {len(m.faces):,}   bodies {m.body_count}")
     print(f"  volume    {m.volume/1000:.1f} cm^3  (~{m.volume/1000*1.24:.0f} g of PLA solid)")
-    print(f"  watertight {m.is_watertight}   winding-consistent {m.is_winding_consistent}"
-          f"   euler {m.euler_number}")
+    print(f"  watertight {m.is_watertight}   winding-consistent {m.is_winding_consistent}")
 
-    opened = whole.buffer(-0.7, quad_segs=32).buffer(0.7, quad_segs=32)
-    thin = whole.area - whole.intersection(opened).area
-    closed = whole.buffer(0.4, quad_segs=32).buffer(-0.4, quad_segs=32)
-    print(f"  drawing   {len(parts(whole))} connected piece(s); "
-          f"{thin:.1f} mm2 in walls under 1.4 mm; "
-          f"{closed.area - whole.area:.1f} mm2 in slots under 0.8 mm")
+    opened = face.buffer(-0.7, quad_segs=32).buffer(0.7, quad_segs=32)
+    thin = face.area - face.intersection(opened).area
+    print(f"  drawing   {len(parts(face))} piece(s); {thin:.2f} mm2 of the face in walls "
+          f"under 1.4 mm")
 
-    n, a = m.face_normals, m.area_faces
-    down = n[:, 2] < -np.cos(np.radians(45))
-    off_bed = down & (np.abs(m.triangles_center[:, 2] - lo[2]) >= 0.3)
-    stray = a[off_bed].sum()
-    print(f"  overhang  {100*a[down].sum()/a.sum():.1f}% faces down steeper than 45 deg; "
-          f"{stray:.2f} mm2 of that is off the bed (decimation slivers under 1 mm2 "
-          f"are noise, not overhang)")
+    foot = m.vertices[m.vertices[:, 2] < lo[2] + 0.4]
+    com = m.center_mass
+    inside = (foot[:, 0].min() < com[0] < foot[:, 0].max()
+              and foot[:, 1].min() < com[1] < foot[:, 1].max())
+    print(f"  footprint {foot[:,0].max()-foot[:,0].min():.0f} x "
+          f"{foot[:,1].max()-foot[:,1].min():.0f} mm, centre of mass over it: {inside}")
+
+    z = z0 + voxel * np.arange(len(per_layer))
+    above = per_layer[z > 0.5]
+    zz = z[z > 0.5]
+    total = above.sum()
+    worst = float(above.max()) if len(above) else 0.0
+    where = zz[int(np.argmax(above))] if len(above) else 0.0
+    print(f"  islands   {total:.2f} mm2 starts with nothing under it (bridges excluded); "
+          f"worst layer {worst:.2f} mm2 at z = {where:.0f} mm")
     return (m.is_watertight and m.is_winding_consistent and m.body_count == 1
-            and len(parts(whole)) == 1 and thin < 1.0 and stray < 1.0)
+            and len(parts(face)) == 1 and thin < 1.0 and inside and total < 5.0)
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scale", type=float, default=1.0,
-                    help="scale the drawing (1.0 = 96 mm wide)")
+    ap.add_argument("--curve", type=float, default=CURVE_R, help="head radius, mm")
+    ap.add_argument("--scale", type=float, default=1.0, help="scale the face drawing")
     ap.add_argument("--voxel", type=float, default=0.25)
-    ap.add_argument("--decimate", type=int, default=120000)
+    ap.add_argument("--decimate", type=int, default=140000)
     ap.add_argument("--out", default="tiara_comb.stl")
     a = ap.parse_args()
-    m, whole = build(a.voxel, a.decimate or None, a.scale)
-    ok = report(m, whole)
+
+    field, origin, voxel, face, comb = build(a.voxel, a.curve, a.scale)
+    per_layer = unsupported(field, voxel)
+    m = mesh_from(field, origin, voxel, a.decimate or None)
+    ok = report(m, face, comb, per_layer, voxel, origin[2])
     m.export(a.out)
     print(f"  wrote {a.out}")
     raise SystemExit(0 if ok else 1)

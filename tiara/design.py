@@ -97,8 +97,11 @@ def crown():
 
     for sgn in (-1.0, 1.0):                                             # curls at the ends
         cx = sgn * 37.0
-        c = spiral((cx, base_y(37.0) + 4.9), 4.4, 1.5,
-                   -95 - sgn * 5, -95 - sgn * 215, 80)
+        # Stop the sweep at the top of the curl. Carry it past there and the
+        # free tip comes back down, so it starts in mid-air when printed
+        # standing; ending at the apex leaves every part of it supported.
+        c = spiral((cx, base_y(37.0) + 4.9), 4.4, 1.6,
+                   -95 - sgn * 5, -95 - sgn * 175, 80)
         strands.append(stroke(c, W_CURL, W_CURL - 0.1))
     return strands, stones
 
@@ -110,17 +113,26 @@ def band():
     return unary_union([lune.buffer(0), stroke(a, W_BASE)])
 
 
-def comb():
-    """Spine along the band's underside, and the teeth."""
-    parts = [stroke(np.array([(-33.0, -0.5), (33.0, -0.5)]), 2.8)]
+def comb_plan(curve_r, span=30.0, spine_w=5.0):
+    """The comb in plan: a spine following the head curve, teeth running back.
+
+    Drawn in the horizontal plane the piece prints on, at right angles to the
+    tiara's face. The spine follows the curve so the wall sits inside it; the
+    teeth stay parallel to each other rather than fanning, as a real comb does.
+    """
+    t = np.linspace(-span, span, 60) / curve_r
+    arc_xy = np.column_stack([curve_r * np.sin(t), curve_r * np.cos(t) - curve_r])
+    parts = [stroke(arc_xy, spine_w)]
     x0 = -TOOTH_PITCH * (TEETH - 1) / 2
     for i in range(TEETH):
         x = x0 + i * TOOTH_PITCH
-        parts.append(stroke(np.array([(x, 0.4), (x, -TOOTH_LEN)]), 2.9, 2.2))
+        y = math.sqrt(max(curve_r ** 2 - x * x, 0.0)) - curve_r
+        parts.append(stroke(np.array([(x, y + 1.0), (x, y - TOOTH_LEN)]), 2.9, 2.2))
     return unary_union(parts)
 
 
-def build():
+def face():
+    """The tiara's face: crown strands, the band, and the pin heads."""
     strands, stones = crown()
     jewel = unary_union(strands + [Point(c).buffer(r, 32) for c, r in stones])
-    return jewel, band(), comb(), stones
+    return jewel, band(), stones
