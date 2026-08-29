@@ -61,7 +61,8 @@ python3 preview.py                                  # flat drawing, to check the
 `--scale` resizes the drawing only — thicknesses stay in millimetres, since they
 are set by what the printer can do rather than by how big the tiara is. The run
 reports the narrowest wall and refuses anything under 1.4 mm, so scaling down too
-far fails rather than printing as lace.
+far fails rather than printing as lace: **0.85 (81 mm) passes, 0.75 (72 mm) does
+not.** Scaling up is unbounded.
 
 Files: `curves.py` (Bézier, arc, spiral, stroking, bead spacing), `design.py`
 (the tiara itself, all coordinates in one place), `tiara.py` (height field,

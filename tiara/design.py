@@ -69,7 +69,7 @@ def crown():
     for seg in curl:
         add(seg, 2.2, 1.8)
     add(stem[0], 2.0, 1.8, bead=None, mirrored=False)
-    add(drop[0], 1.7, 1.5, bead=None, mirrored=False)
+    add(drop[0], 2.1, 1.9, bead=None, mirrored=False)
 
     stones += [((0.0, 46.0), 2.7),                    # stone crowning the stem
                ((-3.8, 42.4), 1.9), ((3.8, 42.4), 1.9),
