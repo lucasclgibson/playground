@@ -5,8 +5,14 @@ printable in one piece with no supports.
 
 ![the tiara](preview_3d.png)
 
-**`tiara_comb_94mm.stl`** — 94.4 mm wide × 30.0 mm tall × 29.2 mm front to back,
+**`tiara_comb_94mm.stl`** — 95.0 mm wide × 30.0 mm tall × 29.2 mm front to back,
 watertight, one body, about 4 g of filament.
+
+The face is a **flat 2.0 mm wall** with square edges — no bevel or rolled-over
+section on the strands, which keeps the perimeters simple to slice. The comb
+**tapers from 2.0 mm where it meets the band down to 1.2 mm at the tooth tips**,
+so the teeth end thin and springy while keeping their full section where they
+carry the tiara; the underside stays flat on the bed.
 
 The face is wrapped onto a **110 mm radius**, so it curves around the head as it
 comes off the printer — no heat-forming needed. The comb sits at right angles to
@@ -26,8 +32,8 @@ voxel or two of rounding — nothing a slicer would even build support for.
 * **PETG or PLA+ rather than plain PLA.** The teeth are 2.6 mm thick and 22 mm
   long, and printed in this orientation the layers run across a tooth, which is
   the strong way.
-* The crown is deliberately fine: strands are 1.6–1.8 mm wide and 2.3 mm round
-  in section, which is three or four passes of a 0.4 mm nozzle.
+* The crown is deliberately fine: strands are 1.6–1.8 mm wide in a 2.0 mm wall,
+  which is four or five passes of a 0.4 mm nozzle.
 * The arches print as bridges between the leaf tips — short spans over the
   openings, which come out clean.
 
@@ -43,21 +49,21 @@ standing in each gap, a small curl at either end and a finial at the crown.
 Below it, a nine-tooth comb at right angles.
 
 Leaves widen with their own height, so the short outer ones stay as slender as
-the tall middle ones instead of turning into circles. Each end curl stops at the
-top of its sweep: carry it further and the free tip comes back down, which starts
-in mid-air when the piece is printed standing.
+the tall middle ones instead of turning into circles. Each end curl stops short
+of the top of its sweep: carry it to the apex and the last stretch runs near
+horizontal, which starts in mid-air when the piece is printed standing.
 
 Every strand is stroked with a round pen along a Bézier or a spiral; unioning
 strokes can only *add* material, so the narrowest pen a design asks for is a hard
 floor on its feature size — the same trick as the snowflakes in this repo.
 
 The face is drawn flat and then wrapped: a point in space is turned into an arc
-length along the head curve and a height, the flat drawing's distance field is
-sampled there, and the strand is rolled to its own half width about that surface.
-That gives round wire rather than a flat cut-out, and pin heads become real
-spheres. The comb is built separately in the horizontal plane and blended in with
-a fillet, so the T-joint between a 2.3 mm wall and a 2.6 mm plate has some meat
-in it.
+length along the head curve and a height, and the flat drawing's distance field
+is sampled there. The wall is one thickness throughout with square edges — a
+bevel running along every strand buys very little on a piece this fine and costs
+a lot of slicing. The comb is built separately in the horizontal plane, its
+thickness driven by how far back it sits from the band, and blended into the face
+with a fillet so the T-joint has some meat in it.
 
 ```bash
 pip install numpy shapely trimesh scikit-image pillow

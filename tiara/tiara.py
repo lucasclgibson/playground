@@ -22,8 +22,9 @@ from skimage.measure import label, marching_cubes
 import design
 
 CURVE_R = 110.0           # mm: radius the face is wrapped on
-STRAND_R = 1.15           # mm: half thickness of a strand, so 2.3 mm of wire
-COMB_T = 2.6              # mm: comb plate thickness
+WALL_T = 2.0              # mm: the face is a constant-thickness wall, square edged
+COMB_T = 2.0              # mm: comb thickness where it meets the band
+COMB_TIP = 1.2            # mm: ... tapering to this at the tooth tips
 SPINE_W = 5.0             # mm: how deep the comb's spine is, front to back
 JOIN_K = 1.2              # fillet where the face meets the comb
 
@@ -86,22 +87,15 @@ def sample_2d(table, U, V):
     return np.where(off, np.maximum(out, 5.0), out)
 
 
-def roll(depth, r):
-    """Half thickness of a strand at `depth` inside its own outline."""
-    u = np.minimum(np.maximum(depth, 0.0), r)
-    return np.sqrt(np.maximum(r * r - (r - u) ** 2, 0.0))
-
-
 def smin(a, b, k):
     h = np.clip(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
     return b + (a - b) * h - k * h * (1.0 - h)
 
 
 def build(voxel=0.25, curve_r=CURVE_R, scale=1.0, decimate=None, verbose=True):
-    jewel, band, stones = design.face()
+    jewel, band, _ = design.face()          # pin heads are discs in the drawing
     if scale != 1.0:
         jewel, band = (affinity.scale(g, scale, scale, origin=(0, 0)) for g in (jewel, band))
-        stones = [((cx * scale, cy * scale), r * scale) for (cx, cy), r in stones]
     face = unary_union([jewel, band])
     comb = design.comb_plan(curve_r, span=30.0 * scale, spine_w=SPINE_W)
 
@@ -128,16 +122,19 @@ def build(voxel=0.25, curve_r=CURVE_R, scale=1.0, decimate=None, verbose=True):
     U = curve_r * np.arctan2(X, ring)
     Dface = sample_2d(table, np.broadcast_to(U, (len(xs), len(ys), 1)),
                       np.broadcast_to(Z, (len(xs), 1, len(zs))))
-    f = np.maximum(Dface, np.abs(rad - curve_r) - roll(-Dface, STRAND_R))
-
-    for (cu, cv), r in stones:                       # pin heads as real spheres
-        t = cu / curve_r
-        c = (curve_r * np.sin(t), curve_r * np.cos(t) - curve_r, cv)
-        f = np.minimum(f, np.sqrt((X - c[0]) ** 2 + (Y - c[1]) ** 2 + (Z - c[2]) ** 2) - r)
+    # A flat wall of one thickness, not a rolled-over section: square edges are
+    # far less work for a slicer than a bevel running along every strand, and
+    # the pin heads read the same as flat discs.
+    f = np.maximum(Dface, np.abs(rad - curve_r) - WALL_T / 2)
 
     gx, gy = np.meshgrid(xs, ys, indexing="ij")
     d_comb = distance_2d(comb, gx, gy)[:, :, None]
-    f = smin(f, np.maximum(d_comb, np.maximum(Z - COMB_T, -Z)), JOIN_K)
+    # Taper the plate with how far back it sits from the band, so the teeth end
+    # thin and springy where they go into the hair and keep their full section
+    # where they carry the tiara. The underside stays flat on the bed.
+    back = np.clip((curve_r - rad) / design.TOOTH_LEN, 0.0, 1.0)
+    t_comb = COMB_T + (COMB_TIP - COMB_T) * back
+    f = smin(f, np.maximum(d_comb, np.maximum(Z - t_comb, -Z)), JOIN_K)
     f = np.maximum(f, 1e-3 - Z).astype(np.float32)   # sit flat on the bed
 
     for sl in (np.s_[0, :, :], np.s_[-1, :, :], np.s_[:, 0, :], np.s_[:, -1, :],
@@ -211,6 +208,9 @@ def report(m, face, comb, per_layer, voxel, z0):
               and foot[:, 1].min() < com[1] < foot[:, 1].max())
     print(f"  footprint {foot[:,0].max()-foot[:,0].min():.0f} x "
           f"{foot[:,1].max()-foot[:,1].min():.0f} mm, centre of mass over it: {inside}")
+    print(f"  comb      {COMB_T:.1f} mm thick at the band, tapering to {COMB_TIP:.1f} mm "
+          f"at the tips over {design.TOOTH_LEN:.0f} mm")
+    print(f"  face      flat wall, {WALL_T:.1f} mm thick throughout")
 
     z = z0 + voxel * np.arange(len(per_layer))
     above = per_layer[z > 0.5]

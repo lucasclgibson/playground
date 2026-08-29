@@ -97,11 +97,11 @@ def crown():
 
     for sgn in (-1.0, 1.0):                                             # curls at the ends
         cx = sgn * 37.0
-        # Stop the sweep at the top of the curl. Carry it past there and the
-        # free tip comes back down, so it starts in mid-air when printed
-        # standing; ending at the apex leaves every part of it supported.
+        # Stop the sweep short of the top of the curl. Carry it to the apex and
+        # the last stretch runs near horizontal, so it starts in mid-air when
+        # printed standing; finishing on the rise leaves it all self-supporting.
         c = spiral((cx, base_y(37.0) + 4.9), 4.4, 1.6,
-                   -95 - sgn * 5, -95 - sgn * 175, 80)
+                   -95 - sgn * 5, -95 - sgn * 150, 80)
         strands.append(stroke(c, W_CURL, W_CURL - 0.1))
     return strands, stones
 
