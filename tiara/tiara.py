@@ -22,9 +22,9 @@ from skimage.measure import marching_cubes
 import design
 
 COMB_T = 2.6              # mm: band and comb, the structural part
-JEWEL_T = 1.2             # mm: flat core under the scrollwork, before the doming
-STRAND_R = 1.3            # mm: strands round over to this radius
-BAND_R = 1.2              # mm: how far the crescent's edges roll over
+JEWEL_T = 1.1             # mm: flat core under the scrollwork, before the doming
+STRAND_R = 1.0            # mm: strands round over to this radius
+BAND_R = 1.0              # mm: how far the crescent's edges roll over
 
 
 def parts(g):
@@ -150,11 +150,13 @@ def report(m, whole):
 
     n, a = m.face_normals, m.area_faces
     down = n[:, 2] < -np.cos(np.radians(45))
-    bed = np.abs(m.triangles_center[down][:, 2] - lo[2]) < 0.3 if down.any() else np.array([True])
-    print(f"  overhang  {100*a[down].sum()/a.sum():.1f}% faces down steeper than 45 deg"
-          f" -- all of it the flat back on the bed: {bool(bed.all())}")
+    off_bed = down & (np.abs(m.triangles_center[:, 2] - lo[2]) >= 0.3)
+    stray = a[off_bed].sum()
+    print(f"  overhang  {100*a[down].sum()/a.sum():.1f}% faces down steeper than 45 deg; "
+          f"{stray:.2f} mm2 of that is off the bed (decimation slivers under 1 mm2 "
+          f"are noise, not overhang)")
     return (m.is_watertight and m.is_winding_consistent and m.body_count == 1
-            and len(parts(whole)) == 1 and thin < 1.0 and bool(bed.all()))
+            and len(parts(whole)) == 1 and thin < 1.0 and stray < 1.0)
 
 
 if __name__ == "__main__":

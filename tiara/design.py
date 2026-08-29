@@ -1,96 +1,122 @@
-"""The tiara: a beaded scrollwork crown over a crescent band, on a hair comb.
+"""The tiara: a fine arched crown over a slim band, on a hair comb.
 
 Coordinates are millimetres in the tiara's own face, origin at the middle of the
-band's baseline, +y up. Everything is drawn once for the right-hand side and
-mirrored, so the piece is symmetric by construction.
+band's baseline, +y up. The crown is a lens between two arcs -- a slim base band
+and a rim arching over it -- filled with a row of pointed leaves, with a
+ball-tipped pin standing in each gap and a small curl at either end.
+
+Everything is drawn as thin smooth strands; the only round forms are the pins'
+heads. Strand widths are set here and nothing is narrower than MIN_STRAND, which
+is what keeps the piece printable.
 """
 
 import math
 
 import numpy as np
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
 
-from curves import arc, bead_points, bezier, mirror, spiral, stroke
+from curves import arc, bezier, mirror, spiral, stroke
 
-WIDTH = 90.0              # tip to tip of the band
-BAND_RISE = 7.5           # how far the crescent arcs above its baseline
+WIDTH = 95.0              # tip to tip of the band
+BASE_RISE = 3.2           # the band's own gentle arch
+RIM_RISE = 26.0           # how high the outer rim arcs over it
+
+LEAVES = 5
+LEAF_ASPECT = 0.30        # leaf half width as a fraction of its own height
+LEAF_HALF_MIN, LEAF_HALF_MAX = 2.4, 5.2
+PIN_HEIGHT = 0.62         # how far up its gap a pin stands, as a fraction
+
+MIN_STRAND = 1.6
+W_RIM, W_BASE, W_LEAF, W_PIN, W_CURL = 1.8, 2.4, 1.7, 1.6, 1.7
+PIN_R = 1.55
+
 TEETH = 9
 TOOTH_PITCH = 7.0
-TOOTH_LEN = 23.0
-
-BEAD_R = 1.65             # the "stones" set along every strand
-BEAD_PITCH = 4.2
+TOOTH_LEN = 22.0
 
 
-def band_arc():
-    """Circular arc through (-W/2, 0) and (W/2, 0), rising BAND_RISE in the middle."""
-    half = WIDTH / 2
-    r = (half * half) / (2 * BAND_RISE) + BAND_RISE / 2
-    cy = BAND_RISE - r
-    span = math.degrees(math.asin(half / r))
-    return arc((0.0, cy), r, 90 - span, 90 + span, 160)
+def _circle(width, rise):
+    """Centre and radius of the arc spanning `width` and rising `rise`."""
+    half = width / 2
+    r = (half * half) / (2 * rise) + rise / 2
+    return rise - r, r
 
 
-def scroll_curves():
-    """Every strand of the crown, right-hand side plus the centre pieces."""
-    heart = [
-        bezier((-1.2, 7.5), (-7, 13), (-19.5, 29), (-16, 41)),    # up to the left lobe
-        bezier((-16, 41), (-12.5, 47), (-4, 45), (0, 36)),        # over it, into the dip
-    ]
-    loop = [
-        bezier((11, 7.5), (26, 9), (37.5, 21), (33, 33)),         # sweep out and up
-        bezier((33, 33), (29.5, 41.5), (18, 38.5), (15.5, 27.5)),  # curl back onto the heart
-    ]
-    curl = [
-        bezier((34, 5.5), (43, 6.5), (48.5, 13), (45.3, 20.6)),   # rise at the end
-        spiral((41.5, 18.8), 4.2, 1.4, 25, -230, 90),             # and curl inward
-    ]
-    stem = [np.array([(0.0, 35.0), (0.0, 44.0)])]                 # crown stem
-    drop = [np.array([(0.0, 36.0), (0.0, 29.0)])]                 # pendant
-    return heart, loop, curl, stem, drop
+def _arc(width, rise, n=200):
+    cy, r = _circle(width, rise)
+    span = math.degrees(math.asin(half_of(width) / r))
+    return arc((0.0, cy), r, 90 - span, 90 + span, n)
+
+
+def half_of(width):
+    return width / 2
+
+
+def height_at(x, width, rise):
+    """Where the arc sits at x (nan-safe at the tips)."""
+    cy, r = _circle(width, rise)
+    return cy + math.sqrt(max(r * r - x * x, 0.0))
+
+
+def base_y(x):
+    return height_at(x, WIDTH, BASE_RISE)
+
+
+def rim_y(x):
+    return height_at(x, WIDTH - 2.0, RIM_RISE)
 
 
 def crown():
-    """The scrollwork above the band: strands, then stones set along them."""
-    heart, loop, curl, stem, drop = scroll_curves()
+    """Strands of the crown, plus the pin heads to be domed as stones."""
     strands, stones = [], []
 
-    def add(pts, w0, w1, bead=BEAD_R, pitch=BEAD_PITCH, mirrored=True, skip=1.2):
-        for p in ([pts, mirror(pts)] if mirrored else [pts]):
-            strands.append(stroke(p, w0, w1))
-            if bead:
-                stones.extend((tuple(q), bead) for q in bead_points(p, pitch, skip))
+    strands.append(stroke(_arc(WIDTH - 2.0, RIM_RISE), W_RIM))          # outer rim
 
-    for seg in heart:
-        add(seg, 2.6, 2.2)
-    for seg in loop:
-        add(seg, 2.4, 2.0)
-    for seg in curl:
-        add(seg, 2.2, 1.8)
-    add(stem[0], 2.0, 1.8, bead=None, mirrored=False)
-    add(drop[0], 2.1, 1.9, bead=None, mirrored=False)
+    pitch = (WIDTH - 20.0) / LEAVES
+    xs = [(i - (LEAVES - 1) / 2) * pitch for i in range(LEAVES)]
+    for x in xs:                                                        # pointed leaves
+        y0, y1 = base_y(x), rim_y(x)
+        h = y1 - y0
+        # widen with height, so the short outer leaves stay as slender as the
+        # tall middle ones instead of turning into circles
+        w = min(max(LEAF_ASPECT * h, LEAF_HALF_MIN), LEAF_HALF_MAX)
+        side = bezier((x, y0), (x - w, y0 + 0.30 * h),
+                      (x - w, y1 - 0.30 * h), (x, y1))
+        strands.append(stroke(side, W_LEAF))
+        strands.append(stroke(mirror(side) + np.array([2 * x, 0.0]), W_LEAF))
 
-    stones += [((0.0, 46.0), 2.7),                    # stone crowning the stem
-               ((-3.8, 42.4), 1.9), ((3.8, 42.4), 1.9),
-               ((0.0, 26.6), 3.0)]                    # the drop
+    for a, b in zip(xs[:-1], xs[1:]):                                   # pins in the gaps
+        x = (a + b) / 2
+        y0 = base_y(x)
+        top = y0 + PIN_HEIGHT * (rim_y(x) - y0)
+        strands.append(stroke(np.array([(x, y0), (x, top)]), W_PIN))
+        stones.append(((x, top), PIN_R))
+    stones.append(((0.0, RIM_RISE + 2.1), 1.9))                         # finial on top
+    strands.append(stroke(np.array([(0.0, RIM_RISE - 1.0), (0.0, RIM_RISE + 1.6)]), W_PIN))
+
+    for sgn in (-1.0, 1.0):                                             # curls at the ends
+        cx = sgn * 37.0
+        c = spiral((cx, base_y(37.0) + 4.9), 4.4, 1.5,
+                   -95 - sgn * 5, -95 - sgn * 215, 80)
+        strands.append(stroke(c, W_CURL, W_CURL - 0.1))
     return strands, stones
 
 
 def band():
-    """The crescent: arc on top, straight underside for the comb to hang from."""
-    a = band_arc()
+    """Slim crescent: the arc, plus the sliver down to the comb's straight top."""
+    a = _arc(WIDTH, BASE_RISE)
     lune = Polygon(np.vstack([a, [[-WIDTH / 2, 0.0], [WIDTH / 2, 0.0]][::-1]]))
-    return unary_union([lune.buffer(0), stroke(a, 2.8)])   # stroke keeps the tips solid
+    return unary_union([lune.buffer(0), stroke(a, W_BASE)])
 
 
 def comb():
     """Spine along the band's underside, and the teeth."""
-    parts = [stroke(np.array([(-33.0, -0.2), (33.0, -0.2)]), 3.4)]
+    parts = [stroke(np.array([(-33.0, -0.5), (33.0, -0.5)]), 2.8)]
     x0 = -TOOTH_PITCH * (TEETH - 1) / 2
     for i in range(TEETH):
         x = x0 + i * TOOTH_PITCH
-        parts.append(stroke(np.array([(x, 0.5), (x, -TOOTH_LEN)]), 2.9, 2.2))
+        parts.append(stroke(np.array([(x, 0.4), (x, -TOOTH_LEN)]), 2.9, 2.2))
     return unary_union(parts)
 
 
