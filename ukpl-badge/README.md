@@ -9,12 +9,18 @@ The badge mark from the logo (no wordmark), as printable solids.
 | File | | |
 |---|---|---|
 | **`ukpl_badge_block_110mm.stl`** | 110 × 95.3 × 20 mm, one piece | the mark extruded thick with **square edges — no bevel anywhere**. The roof is held on by a thin web across the shadow gap, and nothing else. |
+| `ukpl_badge_keyring_45mm.stl` | 45 × 39 × 6 mm, one piece | the same block at keyring size: 7 g, with a 5.4 mm bore for a split ring. |
 | `ukpl_badge_plaque_100mm.stl` | 106.8 × 93.5 × 6 mm, one piece | flat version: the mark raised 3.5 mm on a backing plate that follows its outline. |
 | `ukpl_badge_flat_100mm.stl` | 100 × 86.7 × 6 mm, two pieces | the bare mark as two solids in true relative position, for gluing onto something or insetting. |
 
 <p align="center">
   <img src="preview_plaque.png" width="44%"> <img src="preview_flat.png" width="40%">
 </p>
+
+**The tag's eyelet is a real through-hole**, straight-sided, right through the
+full thickness — 13.2 mm on the 110 mm block, 5.4 mm on the keyring. It scales
+with the art, so a split ring wants the smaller one: at 110 mm the block is
+57–141 g, which is a desk object, not something for a pocket.
 
 The mark is **two disconnected shapes** — a roof chevron floating above a rounded
 tag — so something has to join them. The block does it with a **3.5 mm web**
@@ -44,11 +50,13 @@ none, which is why it is exported that way.
 ```bash
 pip install numpy shapely trimesh mapbox_earcut manifold3d pillow
 python3 badge.py --style block --width 130 --thickness 25 --out bigger.stl
-python3 badge.py --style block --web 5 --reach 8 --out sturdier.stl
+python3 badge.py --style block --width 45 --thickness 6 --web 2.5 --out keyring.stl
 ```
 
-`--thickness` sets how deep the block is, `--web` how thick the bridging web is,
-`--reach` how wide a gap it closes. Every run reports size, watertightness, body
+`--thickness` sets how deep the block is and `--web` how thick the bridging web
+is. `--reach` — how wide a gap the web closes — defaults to a value worked out
+from the artwork, because the gap scales with `--width` while a millimetre value
+would not: left fixed, it silently stops bridging on a smaller badge. Every run reports size, watertightness, body
 count and the fraction of the artwork in walls too thin to print, and exits
 non-zero if any fail.
 

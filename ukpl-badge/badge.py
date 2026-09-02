@@ -61,7 +61,7 @@ def default_border(outline, width):
 
 
 def build(svg="badge.svg", width=100.0, style="plaque", thickness=6.0,
-          plate=2.5, border=None, web=3.5, reach=6.0):
+          plate=2.5, border=None, web=3.5, reach=None):
     logo = to_millimetres(shapes.load(svg)[0], width)
 
     if style == "block":
@@ -69,9 +69,15 @@ def build(svg="badge.svg", width=100.0, style="plaque", thickness=6.0,
         # hold the roof on. The web sits at the back, so the block lies flat on
         # its back with nothing overhanging and the gap reads as a deep slot
         # from the front.
+        if reach is None:
+            # The gap scales with --width, so derive the reach from the mark
+            # itself rather than leaving a millimetre value that only suits one
+            # size: half the widest gap to close, plus a margin.
+            reach = round(shapes.merge_radius(parts(logo)) + 0.6, 1)
         web_poly = shapes.bridge_web(logo, reach)
-        if web_poly is None:
-            raise SystemExit("--reach 0 leaves the mark in separate pieces")
+        if web_poly is None or len(parts(web_poly)) > 1:
+            raise SystemExit(f"--reach {reach} mm does not bridge the mark into "
+                             f"one piece")
         mesh = trimesh.boolean.union([extrude(logo, 0.0, thickness),
                                       extrude(web_poly, 0.0, web)])
         plate_poly = None
@@ -164,8 +170,8 @@ if __name__ == "__main__":
     ap.add_argument("--style", choices=("block", "plaque", "flat"), default="block")
     ap.add_argument("--web", type=float, default=3.5,
                     help="block: thickness of the web bridging the gap, mm")
-    ap.add_argument("--reach", type=float, default=6.0,
-                    help="block: how wide a gap the web closes, mm")
+    ap.add_argument("--reach", type=float, default=None,
+                    help="block: how wide a gap the web closes (default: from the art)")
     ap.add_argument("--thickness", type=float, default=6.0, help="total, mm")
     ap.add_argument("--plate", type=float, default=2.5, help="backing plate, mm")
     ap.add_argument("--border", type=float, default=None,

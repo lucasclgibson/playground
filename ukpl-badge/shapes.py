@@ -119,8 +119,9 @@ def bridge_web(poly, reach):
                                               else [poly]) for r in g.interiors])
     if not holes.is_empty:
         closed = closed.difference(holes)
-    # Buffering leaves near-duplicate points that the ear-clipping triangulator
-    # quietly chokes on, so the extrusion comes out with holes in it; snapping
-    # to a micron grid clears them.
-    closed = shapely.set_precision(closed, 1e-3)
+    # Buffering leaves near-duplicate and collinear points that the ear-clipping
+    # triangulator quietly chokes on, so the extrusion comes out with holes in
+    # it. Snapping alone does not clear them at tighter reaches -- the simplify
+    # is what drops the collinear runs -- so do both.
+    closed = shapely.set_precision(closed.simplify(0.01).buffer(0), 1e-3)
     return None if closed.is_empty else closed
