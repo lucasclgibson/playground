@@ -3,9 +3,10 @@
     python3 badge.py --width 100 --style plaque --out ukpl_badge_plaque_100mm.stl
 
 The mark is two disconnected shapes -- a roof chevron floating 5.5 mm (at 100 mm
-wide) above a rounded tag. `plaque` sits them on a thin backing plate that
-follows their outline, giving one solid piece; `flat` extrudes the two shapes
-alone, for gluing up or printing as separate parts.
+wide) above a rounded tag. `block` extrudes the mark thick with
+square edges and joins the two shapes with a thin web against the back face;
+`plaque` sits them on a thin backing plate that follows their outline; `flat`
+extrudes the two shapes alone, for gluing up or printing as separate parts.
 """
 
 import argparse
@@ -60,10 +61,21 @@ def default_border(outline, width):
 
 
 def build(svg="badge.svg", width=100.0, style="plaque", thickness=6.0,
-          plate=2.5, border=None):
+          plate=2.5, border=None, web=3.5, reach=6.0):
     logo = to_millimetres(shapes.load(svg)[0], width)
 
-    if style == "flat":
+    if style == "block":
+        # Square-edged extrusion, with only a thin web across the shadow gap to
+        # hold the roof on. The web sits at the back, so the block lies flat on
+        # its back with nothing overhanging and the gap reads as a deep slot
+        # from the front.
+        web_poly = shapes.bridge_web(logo, reach)
+        if web_poly is None:
+            raise SystemExit("--reach 0 leaves the mark in separate pieces")
+        mesh = trimesh.boolean.union([extrude(logo, 0.0, thickness),
+                                      extrude(web_poly, 0.0, web)])
+        plate_poly = None
+    elif style == "flat":
         mesh = extrude(logo, 0.0, thickness)
         plate_poly = None
     else:
@@ -80,6 +92,10 @@ def build(svg="badge.svg", width=100.0, style="plaque", thickness=6.0,
         print(f"  plate border {border:.1f} mm")
         mesh = trimesh.boolean.union([extrude(plate_poly, 0.0, plate),
                                       extrude(logo, plate, thickness)])
+    # Drop zero-area faces before welding vertices: merging first collapses
+    # them into non-manifold edges, which turns a clean boolean result into a
+    # mesh that reports as not watertight.
+    mesh.update_faces(mesh.nondegenerate_faces())
     mesh.merge_vertices()
     mesh.remove_unreferenced_vertices()
     return mesh, logo, plate_poly
@@ -109,7 +125,7 @@ def report(mesh, logo, plate_poly, style, plate, thickness):
               f"one piece = {len(parts(plate_poly)) == 1}")
         ok = ok and pthin < 0.005 and len(parts(plate_poly)) == 1
         print(f"  colour change at layer Z = {plate:.2f} mm splits plate from mark")
-    expect = 1 if style == "plaque" else 2
+    expect = 2 if style == "flat" else 1
     ok = ok and mesh.is_watertight and mesh.is_winding_consistent and mesh.body_count == expect
     if mesh.body_count != expect:
         print(f"  ! expected {expect} bodies for style {style}")
@@ -145,7 +161,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--svg", default="badge.svg")
     ap.add_argument("--width", type=float, default=100.0, help="width of the mark, mm")
-    ap.add_argument("--style", choices=("plaque", "flat"), default="plaque")
+    ap.add_argument("--style", choices=("block", "plaque", "flat"), default="block")
+    ap.add_argument("--web", type=float, default=3.5,
+                    help="block: thickness of the web bridging the gap, mm")
+    ap.add_argument("--reach", type=float, default=6.0,
+                    help="block: how wide a gap the web closes, mm")
     ap.add_argument("--thickness", type=float, default=6.0, help="total, mm")
     ap.add_argument("--plate", type=float, default=2.5, help="backing plate, mm")
     ap.add_argument("--border", type=float, default=None,
@@ -154,7 +174,8 @@ if __name__ == "__main__":
     ap.add_argument("--out", default="ukpl_badge.stl")
     a = ap.parse_args()
 
-    mesh, logo, plate_poly = build(a.svg, a.width, a.style, a.thickness, a.plate, a.border)
+    mesh, logo, plate_poly = build(a.svg, a.width, a.style, a.thickness,
+                                   a.plate, a.border, a.web, a.reach)
     ok = report(mesh, logo, plate_poly, a.style, a.plate, a.thickness)
     if a.preview:
         preview(logo, plate_poly, a.preview)

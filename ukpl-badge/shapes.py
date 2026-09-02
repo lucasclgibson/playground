@@ -9,6 +9,8 @@ the roof chevron a solid.
 import re
 import xml.etree.ElementTree as ET
 
+import shapely
+
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
@@ -101,3 +103,24 @@ def merge_radius(polys):
             if joined == n - 1:
                 break
     return widest / 2
+
+
+def bridge_web(poly, reach):
+    """The membrane that bridges a mark's shadow gap, and nothing else.
+
+    A morphological closing fills any gap narrower than 2*reach and leaves the
+    outline alone everywhere else, so the silhouette is untouched. Holes are put
+    back afterwards -- otherwise the closing would seal the tag's eyelet.
+    """
+    if reach <= 0:
+        return None
+    closed = poly.buffer(reach, quad_segs=32).buffer(-reach, quad_segs=32)
+    holes = unary_union([Polygon(r) for g in (poly.geoms if hasattr(poly, "geoms")
+                                              else [poly]) for r in g.interiors])
+    if not holes.is_empty:
+        closed = closed.difference(holes)
+    # Buffering leaves near-duplicate points that the ear-clipping triangulator
+    # quietly chokes on, so the extrusion comes out with holes in it; snapping
+    # to a micron grid clears them.
+    closed = shapely.set_precision(closed, 1e-3)
+    return None if closed.is_empty else closed

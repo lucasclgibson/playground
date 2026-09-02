@@ -103,37 +103,23 @@ def place(svg, width):
     return affinity.translate(poly.simplify(0.03).buffer(0), -(x0 + x1) / 2, -y0)
 
 
-def web_polygon(mark, reach):
-    """The membrane that bridges the mark's shadow gap.
-
-    A morphological closing: it fills any gap narrower than 2*reach and leaves
-    the outline alone everywhere else, so the silhouette is untouched. Holes are
-    put back afterwards -- otherwise the closing would seal the tag's eyelet.
-    """
-    if reach <= 0:
-        return None
-    closed = mark.buffer(reach, quad_segs=32).buffer(-reach, quad_segs=32)
-    holes = unary_union([Polygon(r) for g in parts(mark) for r in g.interiors])
-    if not holes.is_empty:
-        closed = closed.difference(holes)
-    return closed if not closed.is_empty else None
-
-
 def parts(poly):
     return list(poly.geoms) if isinstance(poly, MultiPolygon) else [poly]
 
 
 def build(svg="badge.svg", width=110.0, depth=15.0, edge=3.2, dome=1.5, web_depth=3.5,
           web_reach=6.0, base=(76.0, 36.0, 12.0), embed=10.0, fillet=4.0,
-          voxel=0.35, verbose=True):
+          voxel=0.35, web_flush=True, verbose=True):
     mark = place(svg, width)
-    web = web_polygon(mark, web_reach)
-    lift = base[2] - embed                      # where the mark's foot sits
+    web = shapes.bridge_web(mark, web_reach)
+    lift = base[2] - embed if base else 0.0     # where the mark's foot sits
 
     half = depth / 2
     x0, _, x1, _ = mark.bounds
-    bx = (-max(x1, base[0] / 2) - 3, max(x1, base[0] / 2) + 3)
-    by = (-max(half, base[1] / 2) - 3, max(half, base[1] / 2) + 3)
+    wide = max(x1, base[0] / 2 if base else 0.0)
+    deep = max(half, base[1] / 2 if base else 0.0)
+    bx = (-wide - 3, wide + 3)
+    by = (-deep - 3, deep + 3)
     bz = (-5.0, mark.bounds[3] + lift + 3)
 
     n = [int(np.ceil((hi - lo) / voxel)) + 1 for lo, hi in (bx, by, bz)]
@@ -156,13 +142,19 @@ def build(svg="badge.svg", width=110.0, depth=15.0, edge=3.2, dome=1.5, web_dept
 
     f = rounded_prism(d_mark, Y, half + dome_profile(d_mark, dome), edge)
     if d_web is not None:
-        f = smin(f, rounded_prism(d_web, Y, web_depth / 2, 1.2), 0.25)
+        # Sit the web against the back face rather than mid-depth. It reads the
+        # same from the front -- the gap becomes a deep blind slot -- and it
+        # means the block can be printed lying on its back with nothing
+        # overhanging, which a web floating mid-depth would not allow.
+        back = -(half - web_depth / 2) if web_flush else 0.0
+        f = smin(f, rounded_prism(d_web, Y - back, web_depth / 2, edge), 0.25)
 
-    drop = 4.0                                  # plinth continues below the cut
-    plinth = round_box(X, Y, Z, (0.0, 0.0, (base[2] - drop) / 2),
-                       (base[0] / 2 - 3.0, base[1] / 2 - 3.0,
-                        (base[2] + drop) / 2 - 3.0), 3.0)
-    f = smin(f, plinth, fillet)
+    if base:
+        drop = 4.0                              # plinth continues below the cut
+        plinth = round_box(X, Y, Z, (0.0, 0.0, (base[2] - drop) / 2),
+                           (base[0] / 2 - 3.0, base[1] / 2 - 3.0,
+                            (base[2] + drop) / 2 - 3.0), 3.0)
+        f = smin(f, plinth, fillet)
     f = np.maximum(f, 1e-3 - Z)                 # flat bottom, off the sample plane
 
     for sl in (np.s_[0, :, :], np.s_[-1, :, :], np.s_[:, 0, :], np.s_[:, -1, :],
@@ -270,12 +262,16 @@ if __name__ == "__main__":
     ap.add_argument("--svg", default="badge.svg")
     ap.add_argument("--width", type=float, default=110.0, help="width of the mark, mm")
     ap.add_argument("--depth", type=float, default=15.0, help="how deep the mark is, mm")
-    ap.add_argument("--edge", type=float, default=3.2, help="bullnose radius, mm")
+    ap.add_argument("--edge", type=float, default=3.2,
+                    help="edge radius; 0 keeps the extrusion square")
     ap.add_argument("--dome", type=float, default=1.5,
                     help="extra swell toward the middle of the faces, mm")
     ap.add_argument("--web", type=float, default=3.5, help="bridging web depth, mm")
+    ap.add_argument("--web-centred", action="store_true",
+                    help="put the web mid-depth instead of against the back")
     ap.add_argument("--web-reach", type=float, default=6.0)
-    ap.add_argument("--base", default="76,36,12", help="plinth W,D,H in mm")
+    ap.add_argument("--base", default="76,36,12",
+                    help="plinth W,D,H in mm, or 'none' for the mark on its own")
     ap.add_argument("--embed", type=float, default=10.0, help="mark's foot into plinth, mm")
     ap.add_argument("--fillet", type=float, default=4.0)
     ap.add_argument("--voxel", type=float, default=0.28,
@@ -285,10 +281,11 @@ if __name__ == "__main__":
     ap.add_argument("--out", default="ukpl_badge_stand_110mm.stl")
     a = ap.parse_args()
 
-    base = tuple(float(v) for v in a.base.split(","))
+    base = None if a.base.lower() in ("none", "") else tuple(
+        float(v) for v in a.base.split(","))
     field, origin, voxel, mark, web = build(a.svg, a.width, a.depth, a.edge, a.dome,
                                             a.web, a.web_reach, base, a.embed,
-                                            a.fillet, a.voxel)
+                                            a.fillet, a.voxel, not a.web_centred)
     per_layer = unsupported_area(field, voxel)
     mesh = mesh_from(field, origin, voxel, a.decimate or None)
     ok = report(mesh, per_layer, voxel, origin[2])
