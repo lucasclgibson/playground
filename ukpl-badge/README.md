@@ -8,8 +8,8 @@ The badge mark from the logo (no wordmark), as printable solids.
 
 | File | | |
 |---|---|---|
-| **`ukpl_badge_block_110mm.stl`** | 110 × 95.3 × 20 mm, one piece | the mark extruded thick with **square edges — no bevel anywhere**. The roof is held on by a thin web across the shadow gap, and nothing else. |
-| `ukpl_badge_keyring_45mm.stl` | 45 × 39 × 6 mm, one piece | the same block at keyring size: 7 g, with a 5.4 mm bore for a split ring. |
+| **`ukpl_badge_block_110mm.stl`** | 110 × 95.3 × 26 mm, one piece | the mark extruded thick with **square edges — no bevel anywhere**. The roof is held on by a thin web across the shadow gap, and nothing else. |
+| `ukpl_badge_keyring_45mm.stl` | 45 × 39 × 8 mm, one piece | the same block at keyring size: 10 g, with a 5.4 mm bore for a split ring. |
 | `ukpl_badge_plaque_100mm.stl` | 106.8 × 93.5 × 6 mm, one piece | flat version: the mark raised 3.5 mm on a backing plate that follows its outline. |
 | `ukpl_badge_flat_100mm.stl` | 100 × 86.7 × 6 mm, two pieces | the bare mark as two solids in true relative position, for gluing onto something or insetting. |
 
@@ -20,12 +20,12 @@ The badge mark from the logo (no wordmark), as printable solids.
 **The tag's eyelet is a real through-hole**, straight-sided, right through the
 full thickness — 13.2 mm on the 110 mm block, 5.4 mm on the keyring. It scales
 with the art, so a split ring wants the smaller one: at 110 mm the block is
-57–141 g, which is a desk object, not something for a pocket.
+72–183 g, which is a desk object, not something for a pocket.
 
 The mark is **two disconnected shapes** — a roof chevron floating above a rounded
 tag — so something has to join them. The block does it with a **3.5 mm web**
 across the gap and nothing more: no plate, no plinth. The web sits against the
-**back** face, so from the front the gap reads as a 16.5 mm-deep blind slot with
+**back** face, so from the front the gap reads as a 22.5 mm-deep blind slot with
 the silhouette intact, and the block lies flat on its back with nothing
 overhanging.
 
@@ -34,23 +34,24 @@ overhanging.
 Flat on its back, as exported — logo face up. **No supports:** measured, not
 assumed, there is 0.00 mm² of down-facing surface anywhere but the bed.
 
-Putting the web mid-depth instead would look symmetric from both sides but hangs
-580 mm² of it in mid-air, and standing the block on its own bottom edge — which
-it will just about do, balancing by 2.4 mm with the mass 47 mm up, so a 3° nudge
-tips it — needs 595 mm² of support. Lying flat is the one orientation that needs
-none, which is why it is exported that way.
+Putting the web mid-depth instead would look symmetric from both sides, but it
+leaves 665 mm² of web hanging in mid-air. Standing the block on its own bottom
+edge puts 6,311 mm² over thin air — and at 26 mm deep it will not stand up
+unaided anyway: the centre of mass sits 46 mm up and 0.2 mm *outside* the
+28 × 26 mm contact patch. Lying flat is the one orientation that needs no
+support, which is why it is exported that way.
 
-* 0.2 mm layers; about 57 g of PLA at 15 % infill (141 g if you print it solid).
+* 0.2 mm layers; about 72 g of PLA at 15 % infill (183 g if you print it solid).
 * Every wall is square and vertical, so perimeters stay simple and the edges come
   out crisp.
 * The exact geometry is extruded and booleaned rather than sampled on a grid, so
   the edges are truly sharp — a voxel mesher rounds them by half a voxel — and
-  the file is 200 kB and 4,084 triangles.
+  the file is 111 kB and 2,226 triangles.
 
 ```bash
 pip install numpy shapely trimesh mapbox_earcut manifold3d pillow
-python3 badge.py --style block --width 130 --thickness 25 --out bigger.stl
-python3 badge.py --style block --width 45 --thickness 6 --web 2.5 --out keyring.stl
+python3 badge.py --style block --width 130 --thickness 30 --out bigger.stl
+python3 badge.py --style block --width 45 --thickness 8 --web 2.5 --out keyring.stl
 ```
 
 `--thickness` sets how deep the block is and `--web` how thick the bridging web
