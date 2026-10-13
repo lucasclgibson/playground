@@ -269,7 +269,7 @@ def to_cmyk_jpeg(arr):
     t = ImageCms.buildTransform(srgb, prof, 'RGB', 'CMYK', renderingIntent=0)
     cm = ImageCms.applyTransform(im, t)
     buf = io.BytesIO()
-    cm.save(buf, 'JPEG', quality=95, subsampling=0, dpi=(bg.DPI, bg.DPI))
+    cm.save(buf, 'JPEG', quality=85, subsampling=2, dpi=(bg.DPI, bg.DPI))
     buf.seek(0)
     return buf
 
